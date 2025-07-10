@@ -2,7 +2,7 @@
 
 Just double-click on `run_script.bat` to launch the UI.
 
-# How to run manually
+# How to run manually for the first time
 
 Just run these commands to launch UI:
 
@@ -12,5 +12,6 @@ virtual_env\Scripts\activate.bat
 pip install tk
 pip install pandas
 python -m pip install --upgrade pip
+pip freeze > requirements.txt
 python script.py
 ```
