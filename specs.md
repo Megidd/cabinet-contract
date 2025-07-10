@@ -23,8 +23,10 @@ The UI would display three tables:
 The workflow is like this:
 
 * The user would be shown the _quantity_ table.
+   * User should be able to modify _quantity_ table cells.
+   * User should be able to delete _quantity_ table rows.
 * After user modification and approval, the _summary_ table is displayed.
-* After user modification and approval, the _cost_ table is displayed.
+* After user approval, the _cost_ table is displayed.
 
 # 1st UI output: _quantity table_
 
@@ -201,4 +203,60 @@ When comparing _type_ texts, consider the case-insensitive texts starting with t
 
 # 3rd UI output: _cost_ table
 
-For now, a placeholder will be used for the _cost_ table.
+The _cost_ table adds two columns to the summary table:
+
+* The _unit price_ column:
+   * The _unit price_ value is extracted from a _price_ table.
+   * The _price table_ will be explained by the next sections.
+* The _total price_ column:
+   * The _total price_ value is computed by multiplying the _formula_ output value by the _unit price_ value.
+
+## Picking _unit prices_ from _Price_ table
+
+The _unit price_ for each row of _summary_ table is picked from the _price_ table. To pick each _unit price_ for each row of _summary_ table, the following values of the _summary_ table row should match with the _price_ table row:
+
+* The _type_ should belong to the _unit price_ group:
+    * The _unit price_ group will be explained by the following sections.
+* The _door model_ should match
+* The _color category_ should match
+* The _color code_ should match
+
+## _Price_ table structure
+
+The _price_ table is a CSV file next to the Python script. The user will have the opportunity to view, modify and save the CSV file as their wish.
+
+The _price_ table has this format:
+
+| Door model title | Color category title | Color code title | Cabinet group title | Wardrobe group title | NAMA group title | Other groups title |  Description |
+| ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| cell value | cell value | cell value | cell value | cell value | cell value | cell value | cell value |
+| cell value | cell value | cell value | cell value | cell value | cell value | cell value | cell value |
+
+The CSV file for _price_ table can have any number of rows.
+
+### Case-insensitive
+
+The texts inside the _price_ table are all case-insensitive.
+
+### Price groups of _price_ table
+
+The following groups are inside the _price_ table and they assign a single _unit price_ to each group of _type_ from _summary_ table:
+
+* `Cabinet` unit price group consists of these types from _summary_ table:
+   * `Base`
+   * `Tall`
+   * `Wall`
+* `Wardrobe` unit price group consists of this type from _summary_ table:
+   * `Ward`
+* `Nama` unit price group consists of these types from _summary_ table:
+   * `NAMA`
+* `Safhe 60` unit price group consists of the same _type_ from _summary_ table.
+* `SAfhe 65` unit price group consists of the same _type_ from _summary_ table.
+* `Safhe 75` unit price group consists of the same _type_ from _summary_ table.
+* `Safhe 90` unit price group consists of the same _type_ from _summary_ table.
+* `Safhe 100` unit price group consists of the same _type_ from _summary_ table.
+* `Safhe 120` unit price group consists of the same _type_ from _summary_ table.
+* `Open shelf` unit price group consists of the same _type_ from _summary_ table.
+* `Shelf` unit price group consists of the same _type_ from _summary_ table.
+* `Kesho` unit price group consists of the same _type_ from _summary_ table.
+* `Tabaghe` unit price group consists of the same _type_ from _summary_ table.
