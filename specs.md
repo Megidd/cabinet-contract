@@ -123,23 +123,17 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
    * Formula is `(L*P)*2+(H*P)*2+(L*H)*2 + Factor_farsi`
    * Where `Factor_farsi` is `2*(2*P+L+H)`
 * Type starting with `SAFHE 60` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Safhe 65` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Safhe 75` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Safhe 90` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Safhe 100` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Safhe 120` letters:
-   * Formula is `L*Factor_price`
-       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
+   * Formula is `L`
 * Type starting with `Ward` letters:
    * Formula is `L * H * Factor_P`
    * `Factor_P` is:
@@ -154,25 +148,25 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
       * If `0.100<P<=0.110`, then `0.85`
       * If `0.110<P`, then `0.9`
 * Type starting with `Kesho 1` letters:
-   * Formula is `L+P+H`
+   * Formula is `P*(H/0.72)*L*2`
 * Type starting with `Kesho 2` letters:
-   * Formula is `L+P+H`
+   * Formula is `P*(H/0.72)*L*2`
 * Type starting with `Kesho 3` letters:
-   * Formula is `L+P+H`
+   * Formula is `P*(H/0.72)*L*2`
 * Type starting with `Kesho 4` letters:
-   * Formula is `L+P+H`
+   * Formula is `P*(H/0.72)*L*2`
 * Type starting with `Tabaghe 1` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*1`
 * Type starting with `Tabaghe 2` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*2`
 * Type starting with `Tabaghe 3` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*3`
 * Type starting with `Tabaghe 4` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*4`
 * Type starting with `Tabaghe 5` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*5`
 * Type starting with `Tabaghe 6` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*P*H*6`
 
 ## Display _intermediate table_
 
