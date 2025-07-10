@@ -1,8 +1,10 @@
-# How to run by script
+# How to run
+
+## How to run by script
 
 Just double-click on `run_script.bat` to launch the UI.
 
-# How to run manually for the first time
+## How to run manually for the first time
 
 Just run these commands to launch UI:
 
