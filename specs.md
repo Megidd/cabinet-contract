@@ -68,31 +68,37 @@ The columns of the _intermediate table_ are as follows:
 
 The 8th column of the _intermediate table_ is the output of a _formula_. The next section describes the _formula_ according to each part _type_.
 
-## The _formula_ for 6th column of _intermediate table_
+## The _formula_ for 8th column of _intermediate table_
 
-To produce the _intermediate table_, the program will:
+### Units of formula computation
+
+The input unit of `L`, `P`, and `H` on the _parts list_ are millimeter. The unit should be converted to meter before the formula computations. It means, the `L`, `P`, and `H` values should be divided by `1000` beforehand.
+
+### Formula computation
+
+To produce the 8th column of the _intermediate table_, the program will compute the following formula corresponding to each row.
 
 For each focused row, apply a formula as below. Note that the _type_ text letters are case insensitive.
 
 * Type starting with `Base` letters:
-   * Formula is `(P/100)*(H/72)*L/100`
+   * Formula is `P*(H/0.72)*L`
 * Type starting with `Tall` letters:
-   * Formula is `(P/100)*(H/72)*L/100`
+   * Formula is `P*(H/0.72)*L`
 * Type starting with `Wall` letters, then:
    * Formula is `(Factor_H + Factor_P) * L`
    * `Factor_H` is:
-       * If `H<=40`, then `Factor_H` is `0.25`
-       * If `40<H<=50`, then `Factor_H` is `0.30`
-       * If `50<H<=60`, then `Factor_H` is `0.35`
-       * If `60<H<=70`, then `Factor_H` is `0.40`
-       * If `70<H`, then `Factor_H` is `0.40+(H-70)/100`
+       * If `H<=0.40`, then `Factor_H` is `0.25`
+       * If `0.40<H<=0.50`, then `Factor_H` is `0.30`
+       * If `0.50<H<=0.60`, then `Factor_H` is `0.35`
+       * If `0.60<H<=0.70`, then `Factor_H` is `0.40`
+       * If `0.70<H`, then `Factor_H` is `0.40+(H-0.70)`
    * `Factor_P` is:
-       * `Factor_P` is `(P-30)/200`
-           * If `P<30`, then `Factor_P` is negative
-           * If `30<P`, then `Factor_P` is positive
-           * If `P==30`, then `Factor_P` is zero
+       * `Factor_P` is `(P-0.30)/2`
+           * If `P<0.30`, then `Factor_P` is negative
+           * If `0.30<P`, then `Factor_P` is positive
+           * If `P==0.30`, then `Factor_P` is zero
 * Type starting with `NAMA U` letters:
-   * Formula is `(P+L+8)*H`
+   * Formula is `(P+L+0.08)*H`
 * Type starting with `NAMA L` letters:
    * Formula is `(P+L)*H`
 * Type starting with `NAMA 16` or `NAMA16` letters:
@@ -106,10 +112,10 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
 * Type starting with `NAMA ver 32` letters:
    * Formula is `L*P*2`
 * Type starting with `NAMA hor with light` letters:
-   * Formula is `L*P + (L/100) * Factor_light`
+   * Formula is `L*P + L * Factor_light`
        * `Factor_light` is `550`
 * Type starting with `NAMA ver with light` letters:
-   * Formula is `H*P + (H/100) * Factor_light`
+   * Formula is `H*P + H * Factor_light`
        * `Factor_light` is `550`
 * Type starting with `Open shelf` letters:
    * Formula is `(L*P)*2+(H*P)*2+(L*H)`
@@ -117,31 +123,36 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
    * Formula is `(L*P)*2+(H*P)*2+(L*H)*2 + Factor_farsi`
    * Where `Factor_farsi` is `2*(2*P+L+H)`
 * Type starting with `SAFHE 60` letters:
-   * Formula is `(L/100)*Factor_price`
+   * Formula is `L*Factor_price`
        * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Safhe 65` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*Factor_price`
+       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Safhe 75` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*Factor_price`
+       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Safhe 90` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*Factor_price`
+       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Safhe 100` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*Factor_price`
+       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Safhe 120` letters:
-   * Formula is `L+P+H`
+   * Formula is `L*Factor_price`
+       * Where `Factor_price` will be looked up by _type_ and _color_ from price table.
 * Type starting with `Ward` letters:
    * Formula is `L * H * Factor_P`
    * `Factor_P` is:
-      * If `P<=30`, then `0.45`
-      * If `30<P<=40`, then `0.5`
-      * If `40<P<=50`, then `0.55`
-      * If `50<P<=60`, then `0.6`
-      * If `60<P<=70`, then `0.65`
-      * If `70<P<=80`, then `0.7`
-      * If `80<P<=90`, then `0.75`
-      * If `90<P<=100`, then `0.8`
-      * If `100<P<=110`, then `0.85`
-      * If `110<P`, then `0.9`
+      * If `P<=0.30`, then `0.45`
+      * If `0.30<P<=0.40`, then `0.5`
+      * If `0.40<P<=0.50`, then `0.55`
+      * If `0.50<P<=0.60`, then `0.6`
+      * If `0.60<P<=0.70`, then `0.65`
+      * If `0.70<P<=0.80`, then `0.7`
+      * If `0.80<P<=0.90`, then `0.75`
+      * If `0.90<P<=0.100`, then `0.8`
+      * If `0.100<P<=0.110`, then `0.85`
+      * If `0.110<P`, then `0.9`
 * Type starting with `Kesho 1` letters:
    * Formula is `L+P+H`
 * Type starting with `Kesho 2` letters:
