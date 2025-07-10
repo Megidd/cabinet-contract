@@ -7,12 +7,15 @@ class PartsListProcessor:
     def __init__(self, root):
         self.root = root
         self.root.title("Parts List Processor")
-        self.root.geometry("1200x800")
+        self.root.geometry("1200x900")
         
         # Data storage
         self.parts_data = None
         self.price_table = []
-        self.intermediate_df = None
+        self.quantity_df = None
+        self.summary_df = None
+        self.cost_df = None
+        self.current_view = "quantity"  # Track current table view
         
         # Create main frame
         main_frame = ttk.Frame(root, padding="10")
@@ -22,8 +25,7 @@ class PartsListProcessor:
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(3, weight=1)
-        main_frame.rowconfigure(5, weight=1)
+        main_frame.rowconfigure(2, weight=1)
         
         # File upload section
         upload_frame = ttk.LabelFrame(main_frame, text="Upload Parts List", padding="5")
@@ -41,15 +43,15 @@ class PartsListProcessor:
         
         # Price table headers
         ttk.Label(price_frame, text="Type").grid(row=0, column=0, padx=5)
-        ttk.Label(price_frame, text="Color").grid(row=0, column=1, padx=5)
+        ttk.Label(price_frame, text="Color Category").grid(row=0, column=1, padx=5)
         ttk.Label(price_frame, text="Price").grid(row=0, column=2, padx=5)
         
         # Price table entry fields
         self.type_entry = ttk.Entry(price_frame, width=20)
         self.type_entry.grid(row=1, column=0, padx=5)
         
-        self.color_entry = ttk.Entry(price_frame, width=20)
-        self.color_entry.grid(row=1, column=1, padx=5)
+        self.color_category_entry = ttk.Entry(price_frame, width=20)
+        self.color_category_entry.grid(row=1, column=1, padx=5)
         
         self.price_entry = ttk.Entry(price_frame, width=20)
         self.price_entry.grid(row=1, column=2, padx=5)
@@ -60,51 +62,43 @@ class PartsListProcessor:
         self.price_listbox = tk.Listbox(price_frame, height=5, width=60)
         self.price_listbox.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
         
-        # Intermediate table section
-        intermediate_frame = ttk.LabelFrame(main_frame, text="Intermediate Table", padding="5")
-        intermediate_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        intermediate_frame.columnconfigure(0, weight=1)
-        intermediate_frame.rowconfigure(0, weight=1)
+        # Table display section
+        table_frame = ttk.LabelFrame(main_frame, text="Table Display", padding="5")
+        table_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(1, weight=1)
         
-        # Create Treeview for intermediate table
-        self.tree = ttk.Treeview(intermediate_frame, columns=('Type', 'L', 'P', 'H', 'Door Model', 'Color', 'Color Code', 'Formula Output'), show='headings')
-        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Table title label
+        self.table_title = ttk.Label(table_frame, text="Quantity Table", font=('TkDefaultFont', 12, 'bold'))
+        self.table_title.grid(row=0, column=0, pady=5)
         
-        # Define column headings
-        self.tree.heading('Type', text='Type')
-        self.tree.heading('L', text='L')
-        self.tree.heading('P', text='P')
-        self.tree.heading('H', text='H')
-        self.tree.heading('Door Model', text='Door Model')
-        self.tree.heading('Color', text='Color')
-        self.tree.heading('Color Code', text='Color Code')
-        self.tree.heading('Formula Output', text='Formula Output')
-        
-        # Configure column widths
-        for col in self.tree['columns']:
-            self.tree.column(col, width=140)
+        # Create Treeview for tables
+        self.tree = ttk.Treeview(table_frame, show='headings')
+        self.tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Add scrollbars
-        v_scrollbar = ttk.Scrollbar(intermediate_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        v_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        v_scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
         self.tree.configure(yscrollcommand=v_scrollbar.set)
         
-        h_scrollbar = ttk.Scrollbar(intermediate_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
-        h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        h_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
+        h_scrollbar.grid(row=2, column=0, sticky=(tk.W, tk.E))
         self.tree.configure(xscrollcommand=h_scrollbar.set)
         
         # Edit functionality
         self.tree.bind('<Double-Button-1>', self.on_double_click)
         
-        # Final table button
-        ttk.Button(main_frame, text="Generate Final Table", command=self.generate_final_table).grid(row=4, column=0, pady=10)
+        # Workflow control buttons
+        control_frame = ttk.Frame(main_frame)
+        control_frame.grid(row=3, column=0, pady=10)
         
-        # Final table section (placeholder)
-        final_frame = ttk.LabelFrame(main_frame, text="Final Table", padding="5")
-        final_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.approve_button = ttk.Button(control_frame, text="Approve & Next", command=self.approve_and_next)
+        self.approve_button.grid(row=0, column=0, padx=5)
+        self.approve_button.config(state='disabled')
         
-        self.final_label = ttk.Label(final_frame, text="Final table will be displayed here after processing")
-        self.final_label.grid(row=0, column=0)
+        self.back_button = ttk.Button(control_frame, text="Back", command=self.go_back)
+        self.back_button.grid(row=0, column=1, padx=5)
+        self.back_button.config(state='disabled')
     
     def browse_file(self):
         filename = filedialog.askopenfilename(
@@ -117,18 +111,18 @@ class PartsListProcessor:
     
     def add_price_entry(self):
         type_val = self.type_entry.get()
-        color_val = self.color_entry.get()
+        color_category_val = self.color_category_entry.get()
         price_val = self.price_entry.get()
         
-        if type_val and color_val and price_val:
+        if type_val and color_category_val and price_val:
             try:
                 price_float = float(price_val)
-                self.price_table.append((type_val, color_val, price_float))
-                self.price_listbox.insert(tk.END, f"{type_val} | {color_val} | ${price_float}")
+                self.price_table.append((type_val, color_category_val, price_float))
+                self.price_listbox.insert(tk.END, f"{type_val} | {color_category_val} | ${price_float}")
                 
                 # Clear entries
                 self.type_entry.delete(0, tk.END)
-                self.color_entry.delete(0, tk.END)
+                self.color_category_entry.delete(0, tk.END)
                 self.price_entry.delete(0, tk.END)
             except ValueError:
                 messagebox.showerror("Error", "Price must be a number")
@@ -143,12 +137,8 @@ class PartsListProcessor:
             with open(self.filename, 'r', encoding='utf-8') as file:
                 lines = file.readlines()
             
-            # Clear existing items
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-            
             # Process lines
-            intermediate_data = []
+            quantity_data = []
             
             for line in lines:
                 columns = line.strip().split('\t')
@@ -158,68 +148,70 @@ class PartsListProcessor:
                     try:
                         # Extract required columns
                         part_type = columns[1] if len(columns) > 1 else ""
-                        L = float(columns[3]) if len(columns) > 3 and columns[3] else 0
-                        P = float(columns[4]) if len(columns) > 4 and columns[4] else 0
-                        H = float(columns[5]) if len(columns) > 5 and columns[5] else 0
+                        # Convert mm to meters
+                        L = float(columns[3]) / 1000 if len(columns) > 3 and columns[3] else 0
+                        P = float(columns[4]) / 1000 if len(columns) > 4 and columns[4] else 0
+                        H = float(columns[5]) / 1000 if len(columns) > 5 and columns[5] else 0
                         door_model = columns[10] if len(columns) > 10 else ""
-                        color = columns[12] if len(columns) > 12 else ""
+                        color_category = columns[12] if len(columns) > 12 else ""
                         color_code = columns[13] if len(columns) > 13 else ""
                         
                         # Calculate formula output
                         formula_output = self.calculate_formula(part_type, L, P, H)
                         
-                        # Add to tree
-                        self.tree.insert('', tk.END, values=(part_type, L, P, H, door_model, color, color_code, f"{formula_output:.2f}"))
-                        
-                        intermediate_data.append({
+                        quantity_data.append({
                             'Type': part_type,
                             'L': L,
                             'P': P,
                             'H': H,
                             'Door Model': door_model,
-                            'Color': color,
+                            'Color Category': color_category,
                             'Color Code': color_code,
                             'Formula Output': formula_output
                         })
                     except (ValueError, IndexError) as e:
                         continue
             
-            self.intermediate_df = pd.DataFrame(intermediate_data)
-            messagebox.showinfo("Success", f"Processed {len(intermediate_data)} ADIN entries")
+            self.quantity_df = pd.DataFrame(quantity_data)
+            self.current_view = "quantity"
+            self.display_quantity_table()
+            self.approve_button.config(state='normal')
+            
+            messagebox.showinfo("Success", f"Processed {len(quantity_data)} ADIN entries")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error processing file: {str(e)}")
     
     def calculate_formula(self, part_type, L, P, H):
-        """Calculate formula based on part type"""
+        """Calculate formula based on part type (L, P, H are already in meters)"""
         part_type_upper = part_type.upper()
         
         # Base and Tall types
         if part_type_upper.startswith('BASE') or part_type_upper.startswith('TALL'):
-            return (P/100) * (H/72) * L/100
+            return P * (H / 0.72) * L
         
         # Wall types
         elif part_type_upper.startswith('WALL'):
             # Calculate Factor_H
-            if H <= 40:
+            if H <= 0.40:
                 factor_h = 0.25
-            elif H <= 50:
+            elif H <= 0.50:
                 factor_h = 0.30
-            elif H <= 60:
+            elif H <= 0.60:
                 factor_h = 0.35
-            elif H <= 70:
+            elif H <= 0.70:
                 factor_h = 0.40
             else:
-                factor_h = 0.40 + (H - 70) / 100
+                factor_h = 0.40 + (H - 0.70)
             
             # Calculate Factor_P
-            factor_p = (P - 30) / 200
+            factor_p = (P - 0.30) / 2
             
             return (factor_h + factor_p) * L
         
         # NAMA U types
         elif part_type_upper.startswith('NAMA U'):
-            return (P + L + 8) * H
+            return (P + L + 0.08) * H
         
         # NAMA L types
         elif part_type_upper.startswith('NAMA L'):
@@ -248,73 +240,163 @@ class PartsListProcessor:
         # NAMA hor with light types
         elif part_type_upper.startswith('NAMA HOR WITH LIGHT'):
             factor_light = 550
-            return L * P + (L / 100) * factor_light
+            return L * P + L * factor_light
         
         # NAMA ver with light types
         elif part_type_upper.startswith('NAMA VER WITH LIGHT'):
             factor_light = 550
-            return H * P + (H / 100) * factor_light
+            return H * P + H * factor_light
         
         # Open shelf types
         elif part_type_upper.startswith('OPEN SHELF'):
             return (L * P) * 2 + (H * P) * 2 + (L * H)
         
-        # Shelf types
-        elif part_type_upper.startswith('SHELF'):
+        # Shelf types (but not SAFHE)
+        elif part_type_upper.startswith('SHELF') and not part_type_upper.startswith('SAFHE'):
             factor_farsi = 2 * (2 * P + L + H)
             return (L * P) * 2 + (H * P) * 2 + (L * H) * 2 + factor_farsi
         
-        # SAFHE 60 types
-        elif part_type_upper.startswith('SAFHE 60'):
-            # Look up price from price table
-            factor_price = self.lookup_price(part_type, '')  # Color would be needed here
-            return (L / 100) * factor_price
-        
-        # SAFHE 65-120, Ward, Kesho, Tabaghe types
-        elif (part_type_upper.startswith('SAFHE 65') or part_type_upper.startswith('SAFHE 75') or
-              part_type_upper.startswith('SAFHE 90') or part_type_upper.startswith('SAFHE 100') or
-              part_type_upper.startswith('SAFHE 120') or part_type_upper.startswith('KESHO') or
-              part_type_upper.startswith('TABAGHE')):
-            return L + P + H
+        # SAFHE types
+        elif (part_type_upper.startswith('SAFHE 60') or part_type_upper.startswith('SAFHE 65') or
+              part_type_upper.startswith('SAFHE 75') or part_type_upper.startswith('SAFHE 90') or
+              part_type_upper.startswith('SAFHE 100') or part_type_upper.startswith('SAFHE 120')):
+            return L
         
         # Ward types
         elif part_type_upper.startswith('WARD'):
-            if P <= 30:
+            if P <= 0.30:
                 factor_p = 0.45
-            elif P <= 40:
+            elif P <= 0.40:
                 factor_p = 0.5
-            elif P <= 50:
+            elif P <= 0.50:
                 factor_p = 0.55
-            elif P <= 60:
+            elif P <= 0.60:
                 factor_p = 0.6
-            elif P <= 70:
+            elif P <= 0.70:
                 factor_p = 0.65
-            elif P <= 80:
+            elif P <= 0.80:
                 factor_p = 0.7
-            elif P <= 90:
+            elif P <= 0.90:
                 factor_p = 0.75
-            elif P <= 100:
+            elif P <= 1.00:
                 factor_p = 0.8
-            elif P <= 110:
+            elif P <= 1.10:
                 factor_p = 0.85
             else:
                 factor_p = 0.9
             
             return L * H * factor_p
         
+        # Kesho types
+        elif (part_type_upper.startswith('KESHO 1') or part_type_upper.startswith('KESHO 2') or
+              part_type_upper.startswith('KESHO 3') or part_type_upper.startswith('KESHO 4')):
+            return P * (H / 0.72) * L * 2
+        
+        # Tabaghe types
+        elif part_type_upper.startswith('TABAGHE'):
+            # Extract number from type
+            if 'TABAGHE 1' in part_type_upper:
+                multiplier = 1
+            elif 'TABAGHE 2' in part_type_upper:
+                multiplier = 2
+            elif 'TABAGHE 3' in part_type_upper:
+                multiplier = 3
+            elif 'TABAGHE 4' in part_type_upper:
+                multiplier = 4
+            elif 'TABAGHE 5' in part_type_upper:
+                multiplier = 5
+            elif 'TABAGHE 6' in part_type_upper:
+                multiplier = 6
+            else:
+                multiplier = 1
+            
+            return L * P * H * multiplier
+        
         # Default case
         else:
             return 0
     
-    def lookup_price(self, type_val, color_val):
-        """Look up price from price table"""
-        for entry in self.price_table:
-            if entry[0] == type_val and entry[1] == color_val:
-                return entry[2]
-        return 1  # Default price if not found
+    def display_quantity_table(self):
+        """Display the quantity table"""
+        self.table_title.config(text="Quantity Table")
+        
+        # Clear existing items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Configure columns
+        columns = ['Type', 'L', 'P', 'H', 'Door Model', 'Color Category', 'Color Code', 'Formula Output']
+        self.tree['columns'] = columns
+        
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=120)
+        
+        # Add data
+        for _, row in self.quantity_df.iterrows():
+            values = [
+                row['Type'],
+                f"{row['L']:.3f}",
+                f"{row['P']:.3f}",
+                f"{row['H']:.3f}",
+                row['Door Model'],
+                row['Color Category'],
+                row['Color Code'],
+                f"{row['Formula Output']:.4f}"
+            ]
+            self.tree.insert('', tk.END, values=values)
+    
+    def display_summary_table(self):
+        """Display the summary table"""
+        self.table_title.config(text="Summary Table")
+        
+        # Clear existing items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Configure columns
+        columns = ['Type', 'Door Model', 'Color Category', 'Color Code', 'Total Formula Output']
+        self.tree['columns'] = columns
+        
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=150)
+        
+        # Add data
+        for _, row in self.summary_df.iterrows():
+            values = [
+                row['Type'],
+                row['Door Model'],
+                row['Color Category'],
+                row['Color Code'],
+                f"{row['Formula Output']:.4f}"
+            ]
+            self.tree.insert('', tk.END, values=values)
+    
+    def display_cost_table(self):
+        """Display the cost table (placeholder)"""
+        self.table_title.config(text="Cost Table")
+        
+        # Clear existing items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Configure columns for cost table (to be implemented)
+        columns = ['Type', 'Color Category', 'Total Quantity', 'Unit Price', 'Total Cost']
+        self.tree['columns'] = columns
+        
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=150)
+        
+        # Placeholder message
+        self.tree.insert('', tk.END, values=['Cost table implementation pending...', '', '', '', ''])
     
     def on_double_click(self, event):
         """Handle double-click for editing cells"""
+        if self.current_view != "quantity":
+            return  # Only allow editing in quantity table
+        
         item = self.tree.selection()[0]
         column = self.tree.identify_column(event.x)
         column_index = int(column.replace('#', '')) - 1
@@ -339,15 +421,35 @@ class PartsListProcessor:
             new_value = entry.get()
             values[column_index] = new_value
             
-            # Recalculate formula if numeric columns changed
-            if column_index in [1, 2, 3]:  # L, P, H columns
+            # Update the dataframe and recalculate if needed
+            tree_index = self.tree.index(item)
+            
+            if column_index == 0:  # Type
+                self.quantity_df.at[tree_index, 'Type'] = new_value
+            elif column_index in [1, 2, 3]:  # L, P, H
                 try:
-                    L = float(values[1])
-                    P = float(values[2])
-                    H = float(values[3])
-                    values[7] = f"{self.calculate_formula(values[0], L, P, H):.2f}"
+                    numeric_value = float(new_value)
+                    col_name = ['L', 'P', 'H'][column_index - 1]
+                    self.quantity_df.at[tree_index, col_name] = numeric_value
+                    
+                    # Recalculate formula
+                    L = self.quantity_df.at[tree_index, 'L']
+                    P = self.quantity_df.at[tree_index, 'P']
+                    H = self.quantity_df.at[tree_index, 'H']
+                    part_type = self.quantity_df.at[tree_index, 'Type']
+                    
+                    new_formula_output = self.calculate_formula(part_type, L, P, H)
+                    self.quantity_df.at[tree_index, 'Formula Output'] = new_formula_output
+                    values[7] = f"{new_formula_output:.4f}"
                 except ValueError:
-                    pass
+                    messagebox.showerror("Error", "Invalid numeric value")
+                    return
+            elif column_index == 4:  # Door Model
+                self.quantity_df.at[tree_index, 'Door Model'] = new_value
+            elif column_index == 5:  # Color Category
+                self.quantity_df.at[tree_index, 'Color Category'] = new_value
+            elif column_index == 6:  # Color Code
+                self.quantity_df.at[tree_index, 'Color Code'] = new_value
             
             self.tree.item(item, values=values)
             edit_window.destroy()
@@ -357,9 +459,30 @@ class PartsListProcessor:
         # Allow Enter key to save
         entry.bind('<Return>', lambda e: save_edit())
     
-    def generate_final_table(self):
-        """Generate final table (placeholder)"""
-        messagebox.showinfo("Info", "Final table generation will be implemented later")
+    def approve_and_next(self):
+        """Handle approval and move to next table"""
+        if self.current_view == "quantity":
+            # Generate summary table
+            self.summary_df = self.quantity_df.groupby(['Type', 'Door Model', 'Color Category', 'Color Code'])['Formula Output'].sum().reset_index()
+            self.current_view = "summary"
+            self.display_summary_table()
+            self.back_button.config(state='normal')
+        elif self.current_view == "summary":
+            # Move to cost table
+            self.current_view = "cost"
+            self.display_cost_table()
+            self.approve_button.config(state='disabled')
+        
+    def go_back(self):
+        """Go back to previous table"""
+        if self.current_view == "summary":
+            self.current_view = "quantity"
+            self.display_quantity_table()
+            self.back_button.config(state='disabled')
+        elif self.current_view == "cost":
+            self.current_view = "summary"
+            self.display_summary_table()
+            self.approve_button.config(state='normal')
 
 if __name__ == "__main__":
     root = tk.Tk()
