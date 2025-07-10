@@ -25,7 +25,7 @@ class PartsListProcessor:
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(2, weight=1)
+        main_frame.rowconfigure(1, weight=1)
         
         # File upload section
         upload_frame = ttk.LabelFrame(main_frame, text="Upload Parts List", padding="5")
@@ -37,34 +37,9 @@ class PartsListProcessor:
         ttk.Button(upload_frame, text="Browse", command=self.browse_file).grid(row=0, column=1, padx=5)
         ttk.Button(upload_frame, text="Process File", command=self.process_file).grid(row=0, column=2, padx=5)
         
-        # Price table section
-        price_frame = ttk.LabelFrame(main_frame, text="Price Table", padding="5")
-        price_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
-        
-        # Price table headers
-        ttk.Label(price_frame, text="Type").grid(row=0, column=0, padx=5)
-        ttk.Label(price_frame, text="Color Category").grid(row=0, column=1, padx=5)
-        ttk.Label(price_frame, text="Price").grid(row=0, column=2, padx=5)
-        
-        # Price table entry fields
-        self.type_entry = ttk.Entry(price_frame, width=20)
-        self.type_entry.grid(row=1, column=0, padx=5)
-        
-        self.color_category_entry = ttk.Entry(price_frame, width=20)
-        self.color_category_entry.grid(row=1, column=1, padx=5)
-        
-        self.price_entry = ttk.Entry(price_frame, width=20)
-        self.price_entry.grid(row=1, column=2, padx=5)
-        
-        ttk.Button(price_frame, text="Add Price Entry", command=self.add_price_entry).grid(row=1, column=3, padx=5)
-        
-        # Price table display
-        self.price_listbox = tk.Listbox(price_frame, height=5, width=60)
-        self.price_listbox.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
-        
         # Table display section
         table_frame = ttk.LabelFrame(main_frame, text="Table Display", padding="5")
-        table_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        table_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(1, weight=1)
         
@@ -90,7 +65,7 @@ class PartsListProcessor:
         
         # Workflow control buttons
         control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=3, column=0, pady=10)
+        control_frame.grid(row=2, column=0, pady=10)
         
         self.approve_button = ttk.Button(control_frame, text="Approve & Next", command=self.approve_and_next)
         self.approve_button.grid(row=0, column=0, padx=5)
@@ -99,6 +74,10 @@ class PartsListProcessor:
         self.back_button = ttk.Button(control_frame, text="Back", command=self.go_back)
         self.back_button.grid(row=0, column=1, padx=5)
         self.back_button.config(state='disabled')
+        
+        # Status label
+        self.status_label = ttk.Label(control_frame, text="")
+        self.status_label.grid(row=1, column=0, columnspan=2, pady=5)
     
     def browse_file(self):
         filename = filedialog.askopenfilename(
@@ -109,23 +88,22 @@ class PartsListProcessor:
             self.file_label.config(text=filename.split('/')[-1])
             self.filename = filename
     
-    def add_price_entry(self):
-        type_val = self.type_entry.get()
-        color_category_val = self.color_category_entry.get()
-        price_val = self.price_entry.get()
+    def normalize_type_for_summary(self, type_text):
+        """Normalize type text for summary grouping"""
+        type_upper = type_text.upper()
         
-        if type_val and color_category_val and price_val:
-            try:
-                price_float = float(price_val)
-                self.price_table.append((type_val, color_category_val, price_float))
-                self.price_listbox.insert(tk.END, f"{type_val} | {color_category_val} | ${price_float}")
-                
-                # Clear entries
-                self.type_entry.delete(0, tk.END)
-                self.color_category_entry.delete(0, tk.END)
-                self.price_entry.delete(0, tk.END)
-            except ValueError:
-                messagebox.showerror("Error", "Price must be a number")
+        # Define type prefixes for grouping
+        type_groups = [
+            'BASE', 'TALL', 'WALL', 'NAMA', 'SAFHE 60', 'SAFHE 65', 
+            'SAFHE 75', 'SAFHE 90', 'SAFHE 100', 'SAFHE 120',
+            'WARD', 'OPEN SHELF', 'SHELF', 'KESHO', 'TABAGHE'
+        ]
+        
+        for prefix in type_groups:
+            if type_upper.startswith(prefix):
+                return prefix
+        
+        return type_text  # Return original if no match
     
     def process_file(self):
         if not hasattr(self, 'filename'):
@@ -177,7 +155,7 @@ class PartsListProcessor:
             self.display_quantity_table()
             self.approve_button.config(state='normal')
             
-            messagebox.showinfo("Success", f"Processed {len(quantity_data)} ADIN entries")
+            self.status_label.config(text=f"Processed {len(quantity_data)} ADIN entries")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error processing file: {str(e)}")
@@ -251,7 +229,7 @@ class PartsListProcessor:
         elif part_type_upper.startswith('OPEN SHELF'):
             return (L * P) * 2 + (H * P) * 2 + (L * H)
         
-        # Shelf types (but not SAFHE)
+        # Shelf types (excluding SAFHE)
         elif part_type_upper.startswith('SHELF') and not part_type_upper.startswith('SAFHE'):
             factor_farsi = 2 * (2 * P + L + H)
             return (L * P) * 2 + (H * P) * 2 + (L * H) * 2 + factor_farsi
@@ -295,17 +273,17 @@ class PartsListProcessor:
         # Tabaghe types
         elif part_type_upper.startswith('TABAGHE'):
             # Extract number from type
-            if 'TABAGHE 1' in part_type_upper:
+            if 'TABAGHE 1' in part_type_upper or part_type_upper == 'TABAGHE 1':
                 multiplier = 1
-            elif 'TABAGHE 2' in part_type_upper:
+            elif 'TABAGHE 2' in part_type_upper or part_type_upper == 'TABAGHE 2':
                 multiplier = 2
-            elif 'TABAGHE 3' in part_type_upper:
+            elif 'TABAGHE 3' in part_type_upper or part_type_upper == 'TABAGHE 3':
                 multiplier = 3
-            elif 'TABAGHE 4' in part_type_upper:
+            elif 'TABAGHE 4' in part_type_upper or part_type_upper == 'TABAGHE 4':
                 multiplier = 4
-            elif 'TABAGHE 5' in part_type_upper:
+            elif 'TABAGHE 5' in part_type_upper or part_type_upper == 'TABAGHE 5':
                 multiplier = 5
-            elif 'TABAGHE 6' in part_type_upper:
+            elif 'TABAGHE 6' in part_type_upper or part_type_upper == 'TABAGHE 6':
                 multiplier = 6
             else:
                 multiplier = 1
@@ -355,7 +333,7 @@ class PartsListProcessor:
             self.tree.delete(item)
         
         # Configure columns
-        columns = ['Type', 'Door Model', 'Color Category', 'Color Code', 'Total Formula Output']
+        columns = ['Type Group', 'Door Model', 'Color Category', 'Color Code', 'Total Formula Output', 'Count']
         self.tree['columns'] = columns
         
         for col in columns:
@@ -365,11 +343,12 @@ class PartsListProcessor:
         # Add data
         for _, row in self.summary_df.iterrows():
             values = [
-                row['Type'],
+                row['Type_Group'],
                 row['Door Model'],
                 row['Color Category'],
                 row['Color Code'],
-                f"{row['Formula Output']:.4f}"
+                f"{row['Formula Output']:.4f}",
+                row['Count']
             ]
             self.tree.insert('', tk.END, values=values)
     
@@ -397,7 +376,11 @@ class PartsListProcessor:
         if self.current_view != "quantity":
             return  # Only allow editing in quantity table
         
-        item = self.tree.selection()[0]
+        selection = self.tree.selection()
+        if not selection:
+            return
+            
+        item = selection[0]
         column = self.tree.identify_column(event.x)
         column_index = int(column.replace('#', '')) - 1
         
@@ -426,6 +409,15 @@ class PartsListProcessor:
             
             if column_index == 0:  # Type
                 self.quantity_df.at[tree_index, 'Type'] = new_value
+                # Recalculate formula for type change
+                L = self.quantity_df.at[tree_index, 'L']
+                P = self.quantity_df.at[tree_index, 'P']
+                H = self.quantity_df.at[tree_index, 'H']
+                
+                new_formula_output = self.calculate_formula(new_value, L, P, H)
+                self.quantity_df.at[tree_index, 'Formula Output'] = new_formula_output
+                values[7] = f"{new_formula_output:.4f}"
+                
             elif column_index in [1, 2, 3]:  # L, P, H
                 try:
                     numeric_value = float(new_value)
@@ -463,15 +455,30 @@ class PartsListProcessor:
         """Handle approval and move to next table"""
         if self.current_view == "quantity":
             # Generate summary table
-            self.summary_df = self.quantity_df.groupby(['Type', 'Door Model', 'Color Category', 'Color Code'])['Formula Output'].sum().reset_index()
+            # Add normalized type for grouping
+            self.quantity_df['Type_Group'] = self.quantity_df['Type'].apply(self.normalize_type_for_summary)
+            
+            # Group by normalized type and other fields
+            self.summary_df = self.quantity_df.groupby(
+                ['Type_Group', 'Door Model', 'Color Category', 'Color Code']
+            ).agg({
+                'Formula Output': 'sum',
+                'Type': 'count'  # Count of items
+            }).reset_index()
+            
+            self.summary_df.rename(columns={'Type': 'Count'}, inplace=True)
+            
             self.current_view = "summary"
             self.display_summary_table()
             self.back_button.config(state='normal')
+            self.status_label.config(text=f"Summary table generated with {len(self.summary_df)} grouped entries")
+            
         elif self.current_view == "summary":
             # Move to cost table
             self.current_view = "cost"
             self.display_cost_table()
             self.approve_button.config(state='disabled')
+            self.status_label.config(text="Cost table (placeholder) displayed")
         
     def go_back(self):
         """Go back to previous table"""
@@ -479,10 +486,12 @@ class PartsListProcessor:
             self.current_view = "quantity"
             self.display_quantity_table()
             self.back_button.config(state='disabled')
+            self.status_label.config(text="Returned to quantity table")
         elif self.current_view == "cost":
             self.current_view = "summary"
             self.display_summary_table()
             self.approve_button.config(state='normal')
+            self.status_label.config(text="Returned to summary table")
 
 if __name__ == "__main__":
     root = tk.Tk()
