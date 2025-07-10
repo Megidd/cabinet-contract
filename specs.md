@@ -178,3 +178,27 @@ After user modifies and approves the _quantity_ table, then generate the _summar
 The rows of the _summary_ table will be specified by summarizing the _quantity_ table by the following procedure.
 
 If _type_ and _door model_ and _color category_ and _color code_ are the same for rows of the _quantity_ table, then they all would be just a single row of the _summary_ table and their _formula_ output number will be added together.
+
+### Comparing _type_
+
+When comparing _type_ texts, consider the case-insensitive texts starting with the following letters as one type:
+
+* `Base`
+* `Tall`
+* `Wall`
+* `NAMA`
+* `Safhe 60`
+* `SAfhe 65`
+* `Safhe 75`
+* `Safhe 90`
+* `Safhe 100`
+* `Safhe 120`
+* `Ward`
+* `Open shelf`
+* `Shelf`
+* `Kesho`
+* `Tabaghe`
+
+# 3rd UI output: _cost_ table
+
+For now, a placeholder will be used for the _cost_ table.
