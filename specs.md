@@ -188,3 +188,5 @@ After user modifies and approves the _quantity_ table, then generate the _summar
 ## Rows of _summary_ table
 
 The rows of the _summary_ table will be specified by summarizing the _quantity_ table by the following procedure.
+
+If _type_ and _door model_ and _color category_ and _color code_ are the same for rows of the _quantity_ table, then they all would be just a single row of the _summary_ table and their _formula_ output number will be added together.
