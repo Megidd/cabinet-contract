@@ -209,17 +209,44 @@ class PartsListProcessor:
         return 0.0
     
     def create_quantity_table(self):
-        """Create and display the quantity table"""
+        """Create and display the quantity table with fixed headers"""
         # Clear existing widgets
         for widget in self.table_frame.winfo_children():
             widget.destroy()
         for widget in self.button_frame.winfo_children():
             widget.destroy()
         
-        # Create scrollable frame
-        canvas = tk.Canvas(self.table_frame)
-        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
-        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        # Create container frame for headers and scrollable content
+        container_frame = ttk.Frame(self.table_frame)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        container_frame.columnconfigure(0, weight=1)
+        container_frame.rowconfigure(1, weight=1)
+        
+        # Create headers frame (fixed)
+        headers_frame = ttk.Frame(container_frame)
+        headers_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        # Create headers
+        headers = ["Type", "L (mm)", "P (mm)", "H (mm)", "Door Model", 
+                  "Color Category", "Color Code", "Formula Output", "Delete"]
+        
+        for col, header in enumerate(headers):
+            label = ttk.Label(headers_frame, text=header, font=('Arial', 10, 'bold'), relief=tk.RIDGE)
+            label.grid(row=0, column=col, padx=1, pady=1, sticky=(tk.W, tk.E))
+            if col < 8:
+                headers_frame.columnconfigure(col, minsize=120)
+            else:
+                headers_frame.columnconfigure(col, minsize=70)
+        
+        # Create scrollable frame for data
+        data_container = ttk.Frame(container_frame)
+        data_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        data_container.columnconfigure(0, weight=1)
+        data_container.rowconfigure(0, weight=1)
+        
+        canvas = tk.Canvas(data_container, highlightthickness=0)
+        scrollbar_y = ttk.Scrollbar(data_container, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(container_frame, orient="horizontal", command=canvas.xview)
         scrollable_frame = ttk.Frame(canvas)
         
         scrollable_frame.bind(
@@ -229,14 +256,6 @@ class PartsListProcessor:
         
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
-        
-        # Create table headers
-        headers = ["Type", "L (mm)", "P (mm)", "H (mm)", "Door Model", 
-                  "Color Category", "Color Code", "Formula Output", "Delete"]
-        
-        for col, header in enumerate(headers):
-            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
-            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
         
         # Process data and create table rows
         self.quantity_table_data = []
@@ -266,20 +285,20 @@ class PartsListProcessor:
                     if col < 7:  # All columns except formula output are editable
                         entry = ttk.Entry(scrollable_frame, width=15)
                         entry.insert(0, str(value))
-                        entry.grid(row=row_idx+1, column=col, padx=5, pady=2)
+                        entry.grid(row=row_idx, column=col, padx=1, pady=1)
                         # Check if this row was previously deleted
                         if row_idx in self.deleted_rows:
                             entry.config(state='disabled')
                         row_entries.append(entry)
                     else:  # Formula output - display only
                         label = ttk.Label(scrollable_frame, text=f"{value:.4f}")
-                        label.grid(row=row_idx+1, column=col, padx=5, pady=2)
+                        label.grid(row=row_idx, column=col, padx=1, pady=1)
                         row_entries.append(label)
                 
                 # Delete button
                 delete_btn = ttk.Button(scrollable_frame, text="Delete", 
                                       command=lambda r=row_idx: self.delete_row(r))
-                delete_btn.grid(row=row_idx+1, column=8, padx=5, pady=2)
+                delete_btn.grid(row=row_idx, column=8, padx=1, pady=1)
                 if row_idx in self.deleted_rows:
                     delete_btn.config(state='disabled')
                 row_entries.append(delete_btn)
@@ -289,10 +308,17 @@ class PartsListProcessor:
             except Exception as e:
                 print(f"Error processing row {row_idx}: {e}")
         
+        # Configure column widths in scrollable frame to match headers
+        for col in range(9):
+            if col < 8:
+                scrollable_frame.columnconfigure(col, minsize=120)
+            else:
+                scrollable_frame.columnconfigure(col, minsize=70)
+        
         # Pack scrollbars and canvas
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        scrollbar_x.grid(row=2, column=0, sticky=(tk.W, tk.E))
         
         # Add buttons
         ttk.Button(self.button_frame, text="Recalculate", command=self.recalculate_formulas).pack(side=tk.LEFT, padx=5)
@@ -346,7 +372,7 @@ class PartsListProcessor:
         self.status_label.config(text="Formulas recalculated")
     
     def create_summary_table(self):
-        """Create and display the summary table"""
+        """Create and display the summary table with fixed headers"""
         # First, update quantity table data with current values
         self.recalculate_formulas()
         
@@ -377,10 +403,33 @@ class PartsListProcessor:
         for widget in self.button_frame.winfo_children():
             widget.destroy()
         
-        # Create summary table
-        canvas = tk.Canvas(self.table_frame)
-        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
-        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        # Create container frame for headers and scrollable content
+        container_frame = ttk.Frame(self.table_frame)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        container_frame.columnconfigure(0, weight=1)
+        container_frame.rowconfigure(1, weight=1)
+        
+        # Create headers frame (fixed)
+        headers_frame = ttk.Frame(container_frame)
+        headers_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        # Create headers
+        headers = ["Type", "Door Model", "Color Category", "Color Code", "Total Formula Output"]
+        
+        for col, header in enumerate(headers):
+            label = ttk.Label(headers_frame, text=header, font=('Arial', 10, 'bold'), relief=tk.RIDGE)
+            label.grid(row=0, column=col, padx=1, pady=1, sticky=(tk.W, tk.E))
+            headers_frame.columnconfigure(col, minsize=150)
+        
+        # Create scrollable frame for data
+        data_container = ttk.Frame(container_frame)
+        data_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        data_container.columnconfigure(0, weight=1)
+        data_container.rowconfigure(0, weight=1)
+        
+        canvas = tk.Canvas(data_container, highlightthickness=0)
+        scrollbar_y = ttk.Scrollbar(data_container, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(container_frame, orient="horizontal", command=canvas.xview)
         scrollable_frame = ttk.Frame(canvas)
         
         scrollable_frame.bind(
@@ -390,13 +439,6 @@ class PartsListProcessor:
         
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
-        
-        # Create headers
-        headers = ["Type", "Door Model", "Color Category", "Color Code", "Total Formula Output"]
-        
-        for col, header in enumerate(headers):
-            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
-            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
         
         # Create summary rows
         self.summary_table_data = []
@@ -413,12 +455,13 @@ class PartsListProcessor:
                 else:
                     text = str(value)
                 label = ttk.Label(scrollable_frame, text=text)
-                label.grid(row=row_idx+1, column=col, padx=5, pady=2, sticky=tk.W)
+                label.grid(row=row_idx, column=col, padx=1, pady=1, sticky=tk.W)
+                scrollable_frame.columnconfigure(col, minsize=150)
         
         # Pack scrollbars and canvas
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        scrollbar_x.grid(row=2, column=0, sticky=(tk.W, tk.E))
         
         # Add button
         ttk.Button(self.button_frame, text="Approve and Calculate Costs", 
@@ -455,7 +498,7 @@ class PartsListProcessor:
         return part_type
     
     def create_cost_table(self):
-        """Create and display the cost table"""
+        """Create and display the cost table with fixed headers"""
         # Load price table
         price_data = self.load_price_table()
         
@@ -469,10 +512,34 @@ class PartsListProcessor:
         for widget in self.button_frame.winfo_children():
             widget.destroy()
         
-        # Create cost table
-        canvas = tk.Canvas(self.table_frame)
-        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
-        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        # Create container frame for headers and scrollable content
+        container_frame = ttk.Frame(self.table_frame)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        container_frame.columnconfigure(0, weight=1)
+        container_frame.rowconfigure(1, weight=1)
+        
+        # Create headers frame (fixed)
+        headers_frame = ttk.Frame(container_frame)
+        headers_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        # Create headers
+        headers = ["Type", "Door Model", "Color Category", "Color Code", 
+                  "Total Formula Output", "Unit Price", "Total Price"]
+        
+        for col, header in enumerate(headers):
+            label = ttk.Label(headers_frame, text=header, font=('Arial', 10, 'bold'), relief=tk.RIDGE)
+            label.grid(row=0, column=col, padx=1, pady=1, sticky=(tk.W, tk.E))
+            headers_frame.columnconfigure(col, minsize=130)
+        
+        # Create scrollable frame for data
+        data_container = ttk.Frame(container_frame)
+        data_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        data_container.columnconfigure(0, weight=1)
+        data_container.rowconfigure(0, weight=1)
+        
+        canvas = tk.Canvas(data_container, highlightthickness=0)
+        scrollbar_y = ttk.Scrollbar(data_container, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(container_frame, orient="horizontal", command=canvas.xview)
         scrollable_frame = ttk.Frame(canvas)
         
         scrollable_frame.bind(
@@ -482,14 +549,6 @@ class PartsListProcessor:
         
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
-        
-        # Create headers
-        headers = ["Type", "Door Model", "Color Category", "Color Code", 
-                  "Total Formula Output", "Unit Price", "Total Price"]
-        
-        for col, header in enumerate(headers):
-            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
-            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
         
         # Create cost rows
         self.cost_table_data = []
@@ -521,18 +580,19 @@ class PartsListProcessor:
                 else:
                     text = str(value)
                 label = ttk.Label(scrollable_frame, text=text)
-                label.grid(row=row_idx+1, column=col, padx=5, pady=2, sticky=tk.W)
+                label.grid(row=row_idx, column=col, padx=1, pady=1, sticky=tk.W)
+                scrollable_frame.columnconfigure(col, minsize=130)
         
         # Add total row
         ttk.Label(scrollable_frame, text="TOTAL", font=('Arial', 10, 'bold')).grid(
-            row=len(self.cost_table_data)+1, column=5, padx=5, pady=5, sticky=tk.E)
+            row=len(self.cost_table_data), column=5, padx=1, pady=5, sticky=tk.E)
         ttk.Label(scrollable_frame, text=f"{total_cost:.2f}", font=('Arial', 10, 'bold')).grid(
-            row=len(self.cost_table_data)+1, column=6, padx=5, pady=5, sticky=tk.W)
+            row=len(self.cost_table_data), column=6, padx=1, pady=5, sticky=tk.W)
         
         # Pack scrollbars and canvas
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        scrollbar_x.grid(row=2, column=0, sticky=(tk.W, tk.E))
         
         # Add buttons
         ttk.Button(self.button_frame, text="Export to CSV", 
