@@ -141,9 +141,9 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
       * If `0.60<P<=0.70`, then `0.65`
       * If `0.70<P<=0.80`, then `0.7`
       * If `0.80<P<=0.90`, then `0.75`
-      * If `0.90<P<=0.100`, then `0.8`
-      * If `0.100<P<=0.110`, then `0.85`
-      * If `0.110<P`, then `0.9`
+      * If `0.90<P<=1.00`, then `0.8`
+      * If `1.00<P<=1.10`, then `0.85`
+      * If `1.10<P`, then `0.9`
 * Type starting with `Kesho 1` letters:
    * Formula is `P*(H/0.72)*L*2`
 * Type starting with `Kesho 2` letters:
