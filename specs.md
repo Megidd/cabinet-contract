@@ -10,18 +10,6 @@ The text file is called _parts list_. The user uploads the text file through the
 
 The columns of the _parts list_ text file are separated by the _tab_ character. The _space_ character separates words inside the same _column_.
 
-# UI input: _price table_
-
-The UI will let user enter a price table.
-
-The rows of the price table would contain three columns:
-
-* 1st column: _type_ of part
-* 2nd column: _color category_ of part
-* 3rd column: _price_ of part
-
-The UI will have proper column headers to be user-friendly.
-
 # UI workflow
 
 ## Three UI outputs: _quantity table_ and _summary table_ and _cost table_
