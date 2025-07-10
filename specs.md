@@ -203,7 +203,7 @@ When comparing _type_ texts, consider the case-insensitive texts starting with t
 
 # 3rd UI output: _cost_ table
 
-The _cost_ table adds two columns to the summary table:
+The _cost_ table adds two columns to the _summary_ table:
 
 * The _unit price_ column:
    * The _unit price_ value is extracted from a _price_ table.
