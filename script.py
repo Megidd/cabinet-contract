@@ -1,21 +1,28 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import pandas as pd
-import re
+import os
+import csv
+import subprocess
+import sys
 
 class PartsListProcessor:
     def __init__(self, root):
         self.root = root
         self.root.title("Parts List Processor")
-        self.root.geometry("1200x900")
+        self.root.geometry("1400x900")
         
         # Data storage
         self.parts_data = None
-        self.price_table = []
+        self.price_df = None
         self.quantity_df = None
         self.summary_df = None
         self.cost_df = None
-        self.current_view = "quantity"  # Track current table view
+        self.current_view = "quantity"
+        self.price_csv_path = "price_table.csv"
+        
+        # Initialize price table if it doesn't exist
+        self.initialize_price_table()
         
         # Create main frame
         main_frame = ttk.Frame(root, padding="10")
@@ -36,6 +43,9 @@ class PartsListProcessor:
         
         ttk.Button(upload_frame, text="Browse", command=self.browse_file).grid(row=0, column=1, padx=5)
         ttk.Button(upload_frame, text="Process File", command=self.process_file).grid(row=0, column=2, padx=5)
+        
+        # Price table management
+        ttk.Button(upload_frame, text="View/Edit Price Table", command=self.open_price_table).grid(row=0, column=3, padx=20)
         
         # Table display section
         table_frame = ttk.LabelFrame(main_frame, text="Table Display", padding="5")
@@ -63,6 +73,13 @@ class PartsListProcessor:
         # Edit functionality
         self.tree.bind('<Double-Button-1>', self.on_double_click)
         
+        # Delete functionality (right-click menu)
+        self.tree.bind('<Button-3>', self.show_context_menu)
+        
+        # Context menu for deletion
+        self.context_menu = tk.Menu(root, tearoff=0)
+        self.context_menu.add_command(label="Delete Row", command=self.delete_selected_row)
+        
         # Workflow control buttons
         control_frame = ttk.Frame(main_frame)
         control_frame.grid(row=2, column=0, pady=10)
@@ -75,9 +92,67 @@ class PartsListProcessor:
         self.back_button.grid(row=0, column=1, padx=5)
         self.back_button.config(state='disabled')
         
+        # Delete button (visible only for quantity table)
+        self.delete_button = ttk.Button(control_frame, text="Delete Selected", command=self.delete_selected_row)
+        self.delete_button.grid(row=0, column=2, padx=5)
+        self.delete_button.config(state='disabled')
+        
         # Status label
         self.status_label = ttk.Label(control_frame, text="")
-        self.status_label.grid(row=1, column=0, columnspan=2, pady=5)
+        self.status_label.grid(row=1, column=0, columnspan=3, pady=5)
+    
+    def initialize_price_table(self):
+        """Create price table CSV if it doesn't exist"""
+        if not os.path.exists(self.price_csv_path):
+            headers = [
+                'Door model title', 'Color category title', 'Color code title',
+                'Cabinet group title', 'Wardrobe group title', 'NAMA group title',
+                'Safhe 60 group title', 'Safhe 65 group title', 'Safhe 75 group title',
+                'Safhe 90 group title', 'Safhe 100 group title', 'Safhe 120 group title',
+                'Open shelf group title', 'Shelf group title', 'Kesho group title',
+                'Tabaghe group title', 'Description'
+            ]
+            
+            # Create sample data
+            sample_data = [
+                ['MO10', 'TYPE', 'TISAN', '100', '150', '80', '50', '55', '60',
+                 '70', '75', '85', '120', '130', '110', '90', 'Sample price entry']
+            ]
+            
+            with open(self.price_csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
+                writer.writerows(sample_data)
+    
+    def open_price_table(self):
+        """Open price table CSV in default editor"""
+        try:
+            if sys.platform == "win32":
+                os.startfile(self.price_csv_path)
+            elif sys.platform == "darwin":  # macOS
+                subprocess.call(["open", self.price_csv_path])
+            else:  # linux
+                subprocess.call(["xdg-open", self.price_csv_path])
+            
+            messagebox.showinfo("Price Table", 
+                              "Price table opened in your default CSV editor.\n"
+                              "Save and close the file when done editing.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open price table: {str(e)}")
+    
+    def load_price_table(self):
+        """Load price table from CSV"""
+        try:
+            self.price_df = pd.read_csv(self.price_csv_path, encoding='utf-8')
+            # Convert all text columns to uppercase for case-insensitive matching
+            text_columns = ['Door model title', 'Color category title', 'Color code title', 'Description']
+            for col in text_columns:
+                if col in self.price_df.columns:
+                    self.price_df[col] = self.price_df[col].astype(str).str.upper()
+            return True
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not load price table: {str(e)}")
+            return False
     
     def browse_file(self):
         filename = filedialog.askopenfilename(
@@ -104,6 +179,23 @@ class PartsListProcessor:
                 return prefix
         
         return type_text  # Return original if no match
+    
+    def get_price_group(self, type_normalized):
+        """Get price group for a normalized type"""
+        type_upper = type_normalized.upper()
+        
+        # Cabinet group
+        if type_upper in ['BASE', 'TALL', 'WALL']:
+            return 'Cabinet'
+        # Wardrobe group
+        elif type_upper == 'WARD':
+            return 'Wardrobe'
+        # NAMA group
+        elif type_upper == 'NAMA':
+            return 'NAMA'
+        # Direct mapping groups
+        else:
+            return type_normalized
     
     def process_file(self):
         if not hasattr(self, 'filename'):
@@ -154,6 +246,7 @@ class PartsListProcessor:
             self.current_view = "quantity"
             self.display_quantity_table()
             self.approve_button.config(state='normal')
+            self.delete_button.config(state='normal')
             
             self.status_label.config(text=f"Processed {len(quantity_data)} ADIN entries")
             
@@ -229,8 +322,8 @@ class PartsListProcessor:
         elif part_type_upper.startswith('OPEN SHELF'):
             return (L * P) * 2 + (H * P) * 2 + (L * H)
         
-        # Shelf types (excluding SAFHE)
-        elif part_type_upper.startswith('SHELF') and not part_type_upper.startswith('SAFHE'):
+        # Shelf types
+        elif part_type_upper.startswith('SHELF'):
             factor_farsi = 2 * (2 * P + L + H)
             return (L * P) * 2 + (H * P) * 2 + (L * H) * 2 + factor_farsi
         
@@ -294,9 +387,40 @@ class PartsListProcessor:
         else:
             return 0
     
+    def show_context_menu(self, event):
+        """Show context menu on right-click"""
+        if self.current_view == "quantity":
+            # Select row under mouse
+            item = self.tree.identify_row(event.y)
+            if item:
+                self.tree.selection_set(item)
+                self.context_menu.post(event.x_root, event.y_root)
+    
+    def delete_selected_row(self):
+        """Delete selected row from quantity table"""
+        if self.current_view != "quantity":
+            return
+        
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a row to delete")
+            return
+        
+        # Confirm deletion
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
+            for item in selection:
+                tree_index = self.tree.index(item)
+                # Remove from dataframe
+                self.quantity_df = self.quantity_df.drop(self.quantity_df.index[tree_index]).reset_index(drop=True)
+                # Remove from tree
+                self.tree.delete(item)
+            
+            self.status_label.config(text=f"Deleted row. {len(self.quantity_df)} entries remaining.")
+    
     def display_quantity_table(self):
         """Display the quantity table"""
         self.table_title.config(text="Quantity Table")
+        self.delete_button.config(state='normal')
         
         # Clear existing items
         for item in self.tree.get_children():
@@ -327,6 +451,7 @@ class PartsListProcessor:
     def display_summary_table(self):
         """Display the summary table"""
         self.table_title.config(text="Summary Table")
+        self.delete_button.config(state='disabled')
         
         # Clear existing items
         for item in self.tree.get_children():
@@ -352,24 +477,106 @@ class PartsListProcessor:
             ]
             self.tree.insert('', tk.END, values=values)
     
+    def get_unit_price(self, type_group, door_model, color_category, color_code):
+        """Get unit price from price table"""
+        if self.price_df is None or self.price_df.empty:
+            return 0
+        
+        # Get price group
+        price_group = self.get_price_group(type_group)
+        
+        # Map price group to column name
+        column_mapping = {
+            'Cabinet': 'Cabinet group title',
+            'Wardrobe': 'Wardrobe group title',
+            'NAMA': 'NAMA group title',
+            'SAFHE 60': 'Safhe 60 group title',
+            'SAFHE 65': 'Safhe 65 group title',
+            'SAFHE 75': 'Safhe 75 group title',
+            'SAFHE 90': 'Safhe 90 group title',
+            'SAFHE 100': 'Safhe 100 group title',
+            'SAFHE 120': 'Safhe 120 group title',
+            'OPEN SHELF': 'Open shelf group title',
+            'SHELF': 'Shelf group title',
+            'KESHO': 'Kesho group title',
+            'TABAGHE': 'Tabaghe group title'
+        }
+        
+        price_column = column_mapping.get(price_group.upper())
+        if not price_column or price_column not in self.price_df.columns:
+            return 0
+        
+        # Find matching row in price table
+        matching_rows = self.price_df[
+            (self.price_df['Door model title'].str.upper() == door_model.upper()) &
+            (self.price_df['Color category title'].str.upper() == color_category.upper()) &
+            (self.price_df['Color code title'].str.upper() == color_code.upper())
+        ]
+        
+        if not matching_rows.empty:
+            try:
+                return float(matching_rows.iloc[0][price_column])
+            except:
+                return 0
+        
+        return 0
+    
     def display_cost_table(self):
-        """Display the cost table (placeholder)"""
+        """Display the cost table"""
         self.table_title.config(text="Cost Table")
+        self.delete_button.config(state='disabled')
+        
+        # Load price table
+        if not self.load_price_table():
+            return
+        
+        # Create cost dataframe from summary
+        self.cost_df = self.summary_df.copy()
+        
+        # Add unit price and total price columns
+        self.cost_df['Unit Price'] = self.cost_df.apply(
+            lambda row: self.get_unit_price(
+                row['Type_Group'], 
+                row['Door Model'], 
+                row['Color Category'], 
+                row['Color Code']
+            ), axis=1
+        )
+        
+        self.cost_df['Total Price'] = self.cost_df['Formula Output'] * self.cost_df['Unit Price']
         
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Configure columns for cost table (to be implemented)
-        columns = ['Type', 'Color Category', 'Total Quantity', 'Unit Price', 'Total Cost']
+        # Configure columns
+        columns = ['Type Group', 'Door Model', 'Color Category', 'Color Code', 
+                  'Formula Output', 'Unit Price', 'Total Price']
         self.tree['columns'] = columns
         
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=150)
+            if col in ['Formula Output', 'Unit Price', 'Total Price']:
+                self.tree.column(col, width=120)
+            else:
+                self.tree.column(col, width=130)
         
-        # Placeholder message
-        self.tree.insert('', tk.END, values=['Cost table implementation pending...', '', '', '', ''])
+        # Add data
+        for _, row in self.cost_df.iterrows():
+            values = [
+                row['Type_Group'],
+                row['Door Model'],
+                row['Color Category'],
+                row['Color Code'],
+                f"{row['Formula Output']:.4f}",
+                f"{row['Unit Price']:.2f}",
+                f"{row['Total Price']:.2f}"
+            ]
+            self.tree.insert('', tk.END, values=values)
+        
+        # Show total
+        total_cost = self.cost_df['Total Price'].sum()
+        self.status_label.config(text=f"Total Cost: ${total_cost:.2f}")
     
     def on_double_click(self, event):
         """Handle double-click for editing cells"""
@@ -399,6 +606,7 @@ class PartsListProcessor:
         entry.pack(pady=5)
         entry.insert(0, current_value)
         entry.focus()
+        entry.select_range(0, tk.END)
         
         def save_edit():
             new_value = entry.get()
@@ -478,7 +686,6 @@ class PartsListProcessor:
             self.current_view = "cost"
             self.display_cost_table()
             self.approve_button.config(state='disabled')
-            self.status_label.config(text="Cost table (placeholder) displayed")
         
     def go_back(self):
         """Go back to previous table"""
