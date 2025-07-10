@@ -15,6 +15,7 @@ class PartsListProcessor:
         self.quantity_table_data = []
         self.summary_table_data = []
         self.cost_table_data = []
+        self.deleted_rows = set()  # Track deleted rows
         self.price_table_path = "price_table.csv"
         
         # Create main frame
@@ -70,6 +71,8 @@ class PartsListProcessor:
                                '600', '650', '700', '750', '900', '1100', '1300', '1500', 'Example'])
                 writer.writerow(['MO10', 'TYPE', 'TISAN', '1100', '1300', '850', '520', '570', 
                                '620', '670', '720', '770', '920', '1150', '1350', '1550', 'Example'])
+                writer.writerow(['MO7', 'TYPE', 'TISAN', '1050', '1250', '825', '510', '560', 
+                               '610', '660', '710', '760', '910', '1125', '1325', '1525', 'Example'])
     
     def upload_file(self):
         filename = filedialog.askopenfilename(
@@ -87,6 +90,7 @@ class PartsListProcessor:
                 lines = f.readlines()
             
             self.parts_data = []
+            self.deleted_rows = set()  # Reset deleted rows
             
             for line in lines:
                 columns = line.strip().split('\t')
@@ -199,7 +203,7 @@ class PartsListProcessor:
         elif part_type.startswith('TABAGHE'):
             # Extract number from type
             for i in range(1, 7):
-                if f'TABAGHE {i}' in part_type.upper():
+                if f'TABAGHE {i}' in part_type.upper() or f'TABAGHE{i}' in part_type.upper():
                     return L * P * H * i
         
         return 0.0
@@ -263,6 +267,9 @@ class PartsListProcessor:
                         entry = ttk.Entry(scrollable_frame, width=15)
                         entry.insert(0, str(value))
                         entry.grid(row=row_idx+1, column=col, padx=5, pady=2)
+                        # Check if this row was previously deleted
+                        if row_idx in self.deleted_rows:
+                            entry.config(state='disabled')
                         row_entries.append(entry)
                     else:  # Formula output - display only
                         label = ttk.Label(scrollable_frame, text=f"{value:.4f}")
@@ -273,6 +280,8 @@ class PartsListProcessor:
                 delete_btn = ttk.Button(scrollable_frame, text="Delete", 
                                       command=lambda r=row_idx: self.delete_row(r))
                 delete_btn.grid(row=row_idx+1, column=8, padx=5, pady=2)
+                if row_idx in self.deleted_rows:
+                    delete_btn.config(state='disabled')
                 row_entries.append(delete_btn)
                 
                 self.entry_widgets.append(row_entries)
@@ -294,6 +303,7 @@ class PartsListProcessor:
     def delete_row(self, row_index):
         """Mark row for deletion"""
         if 0 <= row_index < len(self.entry_widgets):
+            self.deleted_rows.add(row_index)
             for widget in self.entry_widgets[row_index]:
                 if isinstance(widget, (ttk.Entry, ttk.Label)):
                     widget.config(state='disabled')
@@ -304,8 +314,8 @@ class PartsListProcessor:
         """Recalculate formulas based on current entry values"""
         for row_idx, row_entries in enumerate(self.entry_widgets):
             try:
-                # Skip disabled rows
-                if row_entries[0].cget('state') == 'disabled':
+                # Skip deleted rows
+                if row_idx in self.deleted_rows:
                     continue
                 
                 # Get current values
@@ -340,18 +350,12 @@ class PartsListProcessor:
         # First, update quantity table data with current values
         self.recalculate_formulas()
         
-        # Clear existing widgets
-        for widget in self.table_frame.winfo_children():
-            widget.destroy()
-        for widget in self.button_frame.winfo_children():
-            widget.destroy()
-        
         # Group data by type, door model, color category, and color code
         summary_dict = {}
         
         for row_idx, row_data in enumerate(self.quantity_table_data):
-            # Skip disabled rows
-            if self.entry_widgets[row_idx][0].cget('state') == 'disabled':
+            # Skip deleted rows
+            if row_idx in self.deleted_rows:
                 continue
             
             part_type = self.normalize_type(row_data[0])
@@ -366,6 +370,12 @@ class PartsListProcessor:
                 summary_dict[key] += formula_output
             else:
                 summary_dict[key] = formula_output
+        
+        # Clear existing widgets
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
         
         # Create summary table
         canvas = tk.Canvas(self.table_frame)
@@ -627,6 +637,7 @@ class PartsListProcessor:
         self.quantity_table_data = []
         self.summary_table_data = []
         self.cost_table_data = []
+        self.deleted_rows = set()
         
         # Clear widgets
         for widget in self.table_frame.winfo_children():
