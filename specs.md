@@ -17,7 +17,7 @@ The UI will let user enter a price table.
 The rows of the price table would contain three columns:
 
 * 1st column: _type_ of part
-* 2nd column: _color_ of part
+* 2nd column: _color category_ of part
 * 3rd column: _price_ of part
 
 The UI will have proper column headers to be user-friendly.
@@ -66,7 +66,7 @@ The columns of the _quantity table_ are as follows:
    * Extract from column 6 of _parts list_
 * 5th column: part _door model_
    * Extract from column 11 of _parts list_
-* 6th column: part _color_
+* 6th column: part _color category_
    * Extract from column 13 of _parts list_
 * 7th column: part _color code_
    * Extract from column 14 of _parts list_
