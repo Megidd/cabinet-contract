@@ -1,268 +1,122 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import pandas as pd
-import os
 import csv
-import subprocess
-import sys
+import os
+from typing import List, Dict, Tuple
 
 class PartsListProcessor:
     def __init__(self, root):
         self.root = root
         self.root.title("Parts List Processor")
-        self.root.geometry("1400x900")
+        self.root.geometry("1200x700")
         
         # Data storage
-        self.parts_data = None
-        self.price_df = None
-        self.quantity_df = None
-        self.summary_df = None
-        self.cost_df = None
-        self.current_view = "quantity"
-        self.price_csv_path = "price_table.csv"
-        
-        # Initialize price table if it doesn't exist
-        self.initialize_price_table()
+        self.parts_data = []
+        self.quantity_table_data = []
+        self.summary_table_data = []
+        self.cost_table_data = []
+        self.price_table_path = "price_table.csv"
         
         # Create main frame
-        main_frame = ttk.Frame(root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.main_frame = ttk.Frame(root, padding="10")
+        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)
+        self.main_frame.columnconfigure(0, weight=1)
+        self.main_frame.rowconfigure(1, weight=1)
         
+        # Create UI elements
+        self.create_ui()
+        
+        # Initialize price table if it doesn't exist
+        self.initialize_price_table()
+    
+    def create_ui(self):
         # File upload section
-        upload_frame = ttk.LabelFrame(main_frame, text="Upload Parts List", padding="5")
-        upload_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=5)
+        upload_frame = ttk.Frame(self.main_frame)
+        upload_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=10)
         
-        self.file_label = ttk.Label(upload_frame, text="No file selected")
-        self.file_label.grid(row=0, column=0, padx=5)
+        ttk.Button(upload_frame, text="Upload Parts List", command=self.upload_file).pack(side=tk.LEFT, padx=5)
+        ttk.Button(upload_frame, text="Edit Price Table", command=self.edit_price_table).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(upload_frame, text="Browse", command=self.browse_file).grid(row=0, column=1, padx=5)
-        ttk.Button(upload_frame, text="Process File", command=self.process_file).grid(row=0, column=2, padx=5)
+        # Table frame
+        self.table_frame = ttk.Frame(self.main_frame)
+        self.table_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.table_frame.columnconfigure(0, weight=1)
+        self.table_frame.rowconfigure(0, weight=1)
         
-        # Price table management
-        ttk.Button(upload_frame, text="View/Edit Price Table", command=self.open_price_table).grid(row=0, column=3, padx=20)
-        
-        # Table display section
-        table_frame = ttk.LabelFrame(main_frame, text="Table Display", padding="5")
-        table_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(1, weight=1)
-        
-        # Table title label
-        self.table_title = ttk.Label(table_frame, text="Quantity Table", font=('TkDefaultFont', 12, 'bold'))
-        self.table_title.grid(row=0, column=0, pady=5)
-        
-        # Create Treeview for tables
-        self.tree = ttk.Treeview(table_frame, show='headings')
-        self.tree.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Add scrollbars
-        v_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        v_scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
-        self.tree.configure(yscrollcommand=v_scrollbar.set)
-        
-        h_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
-        h_scrollbar.grid(row=2, column=0, sticky=(tk.W, tk.E))
-        self.tree.configure(xscrollcommand=h_scrollbar.set)
-        
-        # Edit functionality
-        self.tree.bind('<Double-Button-1>', self.on_double_click)
-        
-        # Delete functionality (right-click menu)
-        self.tree.bind('<Button-3>', self.show_context_menu)
-        
-        # Context menu for deletion
-        self.context_menu = tk.Menu(root, tearoff=0)
-        self.context_menu.add_command(label="Delete Row", command=self.delete_selected_row)
-        
-        # Workflow control buttons
-        control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=2, column=0, pady=10)
-        
-        self.approve_button = ttk.Button(control_frame, text="Approve & Next", command=self.approve_and_next)
-        self.approve_button.grid(row=0, column=0, padx=5)
-        self.approve_button.config(state='disabled')
-        
-        self.back_button = ttk.Button(control_frame, text="Back", command=self.go_back)
-        self.back_button.grid(row=0, column=1, padx=5)
-        self.back_button.config(state='disabled')
-        
-        # Delete button (visible only for quantity table)
-        self.delete_button = ttk.Button(control_frame, text="Delete Selected", command=self.delete_selected_row)
-        self.delete_button.grid(row=0, column=2, padx=5)
-        self.delete_button.config(state='disabled')
+        # Button frame
+        self.button_frame = ttk.Frame(self.main_frame)
+        self.button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=10)
         
         # Status label
-        self.status_label = ttk.Label(control_frame, text="")
-        self.status_label.grid(row=1, column=0, columnspan=3, pady=5)
+        self.status_label = ttk.Label(self.main_frame, text="Please upload a parts list file")
+        self.status_label.grid(row=3, column=0, sticky=(tk.W, tk.E))
     
     def initialize_price_table(self):
-        """Create price table CSV if it doesn't exist"""
-        if not os.path.exists(self.price_csv_path):
-            headers = [
-                'Door model title', 'Color category title', 'Color code title',
-                'Cabinet group title', 'Wardrobe group title', 'NAMA group title',
-                'Safhe 60 group title', 'Safhe 65 group title', 'Safhe 75 group title',
-                'Safhe 90 group title', 'Safhe 100 group title', 'Safhe 120 group title',
-                'Open shelf group title', 'Shelf group title', 'Kesho group title',
-                'Tabaghe group title', 'Description'
-            ]
+        """Create a default price table CSV if it doesn't exist"""
+        if not os.path.exists(self.price_table_path):
+            headers = ['Door model', 'Color category', 'Color code', 'Cabinet', 'Wardrobe', 
+                      'NAMA', 'Safhe 60', 'Safhe 65', 'Safhe 75', 'Safhe 90', 'Safhe 100', 
+                      'Safhe 120', 'Open shelf', 'Shelf', 'Kesho', 'Tabaghe', 'Description']
             
-            # Create sample data
-            sample_data = [
-                ['MO10', 'TYPE', 'TISAN', '100', '150', '80', '50', '55', '60',
-                 '70', '75', '85', '120', '130', '110', '90', 'Sample price entry']
-            ]
-            
-            with open(self.price_csv_path, 'w', newline='', encoding='utf-8') as f:
+            with open(self.price_table_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
                 writer.writerow(headers)
-                writer.writerows(sample_data)
+                # Add some example rows
+                writer.writerow(['MO1', 'TYPE', 'TISAN', '1000', '1200', '800', '500', '550', 
+                               '600', '650', '700', '750', '900', '1100', '1300', '1500', 'Example'])
+                writer.writerow(['MO10', 'TYPE', 'TISAN', '1100', '1300', '850', '520', '570', 
+                               '620', '670', '720', '770', '920', '1150', '1350', '1550', 'Example'])
     
-    def open_price_table(self):
-        """Open price table CSV in default editor"""
-        try:
-            if sys.platform == "win32":
-                os.startfile(self.price_csv_path)
-            elif sys.platform == "darwin":  # macOS
-                subprocess.call(["open", self.price_csv_path])
-            else:  # linux
-                subprocess.call(["xdg-open", self.price_csv_path])
-            
-            messagebox.showinfo("Price Table", 
-                              "Price table opened in your default CSV editor.\n"
-                              "Save and close the file when done editing.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open price table: {str(e)}")
-    
-    def load_price_table(self):
-        """Load price table from CSV"""
-        try:
-            self.price_df = pd.read_csv(self.price_csv_path, encoding='utf-8')
-            # Convert all text columns to uppercase for case-insensitive matching
-            text_columns = ['Door model title', 'Color category title', 'Color code title', 'Description']
-            for col in text_columns:
-                if col in self.price_df.columns:
-                    self.price_df[col] = self.price_df[col].astype(str).str.upper()
-            return True
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not load price table: {str(e)}")
-            return False
-    
-    def browse_file(self):
+    def upload_file(self):
         filename = filedialog.askopenfilename(
             title="Select Parts List File",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
         )
+        
         if filename:
-            self.file_label.config(text=filename.split('/')[-1])
-            self.filename = filename
+            self.process_parts_list(filename)
     
-    def normalize_type_for_summary(self, type_text):
-        """Normalize type text for summary grouping"""
-        type_upper = type_text.upper()
-        
-        # Define type prefixes for grouping
-        type_groups = [
-            'BASE', 'TALL', 'WALL', 'NAMA', 'SAFHE 60', 'SAFHE 65', 
-            'SAFHE 75', 'SAFHE 90', 'SAFHE 100', 'SAFHE 120',
-            'WARD', 'OPEN SHELF', 'SHELF', 'KESHO', 'TABAGHE'
-        ]
-        
-        for prefix in type_groups:
-            if type_upper.startswith(prefix):
-                return prefix
-        
-        return type_text  # Return original if no match
-    
-    def get_price_group(self, type_normalized):
-        """Get price group for a normalized type"""
-        type_upper = type_normalized.upper()
-        
-        # Cabinet group
-        if type_upper in ['BASE', 'TALL', 'WALL']:
-            return 'Cabinet'
-        # Wardrobe group
-        elif type_upper == 'WARD':
-            return 'Wardrobe'
-        # NAMA group
-        elif type_upper == 'NAMA':
-            return 'NAMA'
-        # Direct mapping groups
-        else:
-            return type_normalized
-    
-    def process_file(self):
-        if not hasattr(self, 'filename'):
-            messagebox.showerror("Error", "Please select a file first")
-            return
-        
+    def process_parts_list(self, filename):
+        """Process the uploaded parts list file"""
         try:
-            # Read the file with tab separator
-            with open(self.filename, 'r', encoding='utf-8') as file:
-                lines = file.readlines()
+            with open(filename, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
             
-            # Process lines
-            quantity_data = []
+            self.parts_data = []
             
             for line in lines:
                 columns = line.strip().split('\t')
-                
-                # Check if first column contains 'ADIN'
                 if len(columns) >= 14 and 'ADIN' in columns[0]:
-                    try:
-                        # Extract required columns
-                        part_type = columns[1] if len(columns) > 1 else ""
-                        # Convert mm to meters
-                        L = float(columns[3]) / 1000 if len(columns) > 3 and columns[3] else 0
-                        P = float(columns[4]) / 1000 if len(columns) > 4 and columns[4] else 0
-                        H = float(columns[5]) / 1000 if len(columns) > 5 and columns[5] else 0
-                        door_model = columns[10] if len(columns) > 10 else ""
-                        color_category = columns[12] if len(columns) > 12 else ""
-                        color_code = columns[13] if len(columns) > 13 else ""
-                        
-                        # Calculate formula output
-                        formula_output = self.calculate_formula(part_type, L, P, H)
-                        
-                        quantity_data.append({
-                            'Type': part_type,
-                            'L': L,
-                            'P': P,
-                            'H': H,
-                            'Door Model': door_model,
-                            'Color Category': color_category,
-                            'Color Code': color_code,
-                            'Formula Output': formula_output
-                        })
-                    except (ValueError, IndexError) as e:
-                        continue
+                    self.parts_data.append(columns)
             
-            self.quantity_df = pd.DataFrame(quantity_data)
-            self.current_view = "quantity"
-            self.display_quantity_table()
-            self.approve_button.config(state='normal')
-            self.delete_button.config(state='normal')
-            
-            self.status_label.config(text=f"Processed {len(quantity_data)} ADIN entries")
-            
+            if self.parts_data:
+                self.create_quantity_table()
+                self.status_label.config(text=f"Loaded {len(self.parts_data)} ADIN parts")
+            else:
+                messagebox.showwarning("No Data", "No ADIN parts found in the file")
+                
         except Exception as e:
             messagebox.showerror("Error", f"Error processing file: {str(e)}")
     
-    def calculate_formula(self, part_type, L, P, H):
-        """Calculate formula based on part type (L, P, H are already in meters)"""
-        part_type_upper = part_type.upper()
+    def calculate_formula(self, part_type: str, L: float, P: float, H: float) -> float:
+        """Calculate the formula output based on part type"""
+        # Convert mm to meters
+        L = L / 1000
+        P = P / 1000
+        H = H / 1000
         
-        # Base and Tall types
-        if part_type_upper.startswith('BASE') or part_type_upper.startswith('TALL'):
+        part_type = part_type.upper()
+        
+        # Base and Tall
+        if part_type.startswith('BASE') or part_type.startswith('TALL'):
             return P * (H / 0.72) * L
         
-        # Wall types
-        elif part_type_upper.startswith('WALL'):
+        # Wall
+        elif part_type.startswith('WALL'):
             # Calculate Factor_H
             if H <= 0.40:
                 factor_h = 0.25
@@ -280,425 +134,629 @@ class PartsListProcessor:
             
             return (factor_h + factor_p) * L
         
-        # NAMA U types
-        elif part_type_upper.startswith('NAMA U'):
+        # NAMA variants
+        elif part_type.startswith('NAMA U'):
             return (P + L + 0.08) * H
-        
-        # NAMA L types
-        elif part_type_upper.startswith('NAMA L'):
+        elif part_type.startswith('NAMA L'):
             return (P + L) * H
-        
-        # NAMA 16 or NAMA16 types
-        elif part_type_upper.startswith('NAMA 16') or part_type_upper.startswith('NAMA16'):
+        elif part_type.startswith('NAMA 16') or part_type.startswith('NAMA16'):
             return H * P
-        
-        # NAMA 32 types
-        elif part_type_upper.startswith('NAMA 32'):
+        elif part_type.startswith('NAMA 32'):
             return H * P * 2
-        
-        # NAMA CNC types
-        elif part_type_upper.startswith('NAMA CNC'):
+        elif part_type.startswith('NAMA CNC'):
             return L * P * 2
-        
-        # NAMA ver 16 types
-        elif part_type_upper.startswith('NAMA VER 16'):
+        elif part_type.startswith('NAMA VER 16'):
             return L * P
-        
-        # NAMA ver 32 types
-        elif part_type_upper.startswith('NAMA VER 32'):
+        elif part_type.startswith('NAMA VER 32'):
             return L * P * 2
-        
-        # NAMA hor with light types
-        elif part_type_upper.startswith('NAMA HOR WITH LIGHT'):
-            factor_light = 550
+        elif part_type.startswith('NAMA HOR WITH LIGHT'):
+            factor_light = 0.55  # 550mm converted to meters
             return L * P + L * factor_light
-        
-        # NAMA ver with light types
-        elif part_type_upper.startswith('NAMA VER WITH LIGHT'):
-            factor_light = 550
+        elif part_type.startswith('NAMA VER WITH LIGHT'):
+            factor_light = 0.55
             return H * P + H * factor_light
         
-        # Open shelf types
-        elif part_type_upper.startswith('OPEN SHELF'):
+        # Open shelf and Shelf
+        elif part_type.startswith('OPEN SHELF'):
             return (L * P) * 2 + (H * P) * 2 + (L * H)
-        
-        # Shelf types
-        elif part_type_upper.startswith('SHELF'):
+        elif part_type.startswith('SHELF'):
             factor_farsi = 2 * (2 * P + L + H)
             return (L * P) * 2 + (H * P) * 2 + (L * H) * 2 + factor_farsi
         
-        # SAFHE types
-        elif (part_type_upper.startswith('SAFHE 60') or part_type_upper.startswith('SAFHE 65') or
-              part_type_upper.startswith('SAFHE 75') or part_type_upper.startswith('SAFHE 90') or
-              part_type_upper.startswith('SAFHE 100') or part_type_upper.startswith('SAFHE 120')):
-            return L
+        # SAFHE variants
+        elif any(part_type.startswith(f'SAFHE {x}') for x in ['60', '65', '75', '90', '100', '120']):
+            return L * 1000  # Return in mm for linear measurements
         
-        # Ward types
-        elif part_type_upper.startswith('WARD'):
+        # Ward
+        elif part_type.startswith('WARD'):
             if P <= 0.30:
                 factor_p = 0.45
             elif P <= 0.40:
-                factor_p = 0.5
+                factor_p = 0.50
             elif P <= 0.50:
                 factor_p = 0.55
             elif P <= 0.60:
-                factor_p = 0.6
+                factor_p = 0.60
             elif P <= 0.70:
                 factor_p = 0.65
             elif P <= 0.80:
-                factor_p = 0.7
+                factor_p = 0.70
             elif P <= 0.90:
                 factor_p = 0.75
             elif P <= 1.00:
-                factor_p = 0.8
+                factor_p = 0.80
             elif P <= 1.10:
                 factor_p = 0.85
             else:
-                factor_p = 0.9
-            
+                factor_p = 0.90
             return L * H * factor_p
         
-        # Kesho types
-        elif (part_type_upper.startswith('KESHO 1') or part_type_upper.startswith('KESHO 2') or
-              part_type_upper.startswith('KESHO 3') or part_type_upper.startswith('KESHO 4')):
+        # Kesho
+        elif part_type.startswith('KESHO'):
             return P * (H / 0.72) * L * 2
         
-        # Tabaghe types
-        elif part_type_upper.startswith('TABAGHE'):
+        # Tabaghe
+        elif part_type.startswith('TABAGHE'):
             # Extract number from type
-            if 'TABAGHE 1' in part_type_upper or part_type_upper == 'TABAGHE 1':
-                multiplier = 1
-            elif 'TABAGHE 2' in part_type_upper or part_type_upper == 'TABAGHE 2':
-                multiplier = 2
-            elif 'TABAGHE 3' in part_type_upper or part_type_upper == 'TABAGHE 3':
-                multiplier = 3
-            elif 'TABAGHE 4' in part_type_upper or part_type_upper == 'TABAGHE 4':
-                multiplier = 4
-            elif 'TABAGHE 5' in part_type_upper or part_type_upper == 'TABAGHE 5':
-                multiplier = 5
-            elif 'TABAGHE 6' in part_type_upper or part_type_upper == 'TABAGHE 6':
-                multiplier = 6
-            else:
-                multiplier = 1
-            
-            return L * P * H * multiplier
+            for i in range(1, 7):
+                if f'TABAGHE {i}' in part_type.upper():
+                    return L * P * H * i
         
-        # Default case
-        else:
-            return 0
+        return 0.0
     
-    def show_context_menu(self, event):
-        """Show context menu on right-click"""
-        if self.current_view == "quantity":
-            # Select row under mouse
-            item = self.tree.identify_row(event.y)
-            if item:
-                self.tree.selection_set(item)
-                self.context_menu.post(event.x_root, event.y_root)
-    
-    def delete_selected_row(self):
-        """Delete selected row from quantity table"""
-        if self.current_view != "quantity":
-            return
+    def create_quantity_table(self):
+        """Create and display the quantity table"""
+        # Clear existing widgets
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
         
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select a row to delete")
-            return
+        # Create scrollable frame
+        canvas = tk.Canvas(self.table_frame)
+        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        # Confirm deletion
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
-            for item in selection:
-                tree_index = self.tree.index(item)
-                # Remove from dataframe
-                self.quantity_df = self.quantity_df.drop(self.quantity_df.index[tree_index]).reset_index(drop=True)
-                # Remove from tree
-                self.tree.delete(item)
-            
-            self.status_label.config(text=f"Deleted row. {len(self.quantity_df)} entries remaining.")
-    
-    def display_quantity_table(self):
-        """Display the quantity table"""
-        self.table_title.config(text="Quantity Table")
-        self.delete_button.config(state='normal')
-        
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        # Configure columns
-        columns = ['Type', 'L', 'P', 'H', 'Door Model', 'Color Category', 'Color Code', 'Formula Output']
-        self.tree['columns'] = columns
-        
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=120)
-        
-        # Add data
-        for _, row in self.quantity_df.iterrows():
-            values = [
-                row['Type'],
-                f"{row['L']:.3f}",
-                f"{row['P']:.3f}",
-                f"{row['H']:.3f}",
-                row['Door Model'],
-                row['Color Category'],
-                row['Color Code'],
-                f"{row['Formula Output']:.4f}"
-            ]
-            self.tree.insert('', tk.END, values=values)
-    
-    def display_summary_table(self):
-        """Display the summary table"""
-        self.table_title.config(text="Summary Table")
-        self.delete_button.config(state='disabled')
-        
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        # Configure columns
-        columns = ['Type Group', 'Door Model', 'Color Category', 'Color Code', 'Total Formula Output', 'Count']
-        self.tree['columns'] = columns
-        
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=150)
-        
-        # Add data
-        for _, row in self.summary_df.iterrows():
-            values = [
-                row['Type_Group'],
-                row['Door Model'],
-                row['Color Category'],
-                row['Color Code'],
-                f"{row['Formula Output']:.4f}",
-                row['Count']
-            ]
-            self.tree.insert('', tk.END, values=values)
-    
-    def get_unit_price(self, type_group, door_model, color_category, color_code):
-        """Get unit price from price table"""
-        if self.price_df is None or self.price_df.empty:
-            return 0
-        
-        # Get price group
-        price_group = self.get_price_group(type_group)
-        
-        # Map price group to column name
-        column_mapping = {
-            'Cabinet': 'Cabinet group title',
-            'Wardrobe': 'Wardrobe group title',
-            'NAMA': 'NAMA group title',
-            'SAFHE 60': 'Safhe 60 group title',
-            'SAFHE 65': 'Safhe 65 group title',
-            'SAFHE 75': 'Safhe 75 group title',
-            'SAFHE 90': 'Safhe 90 group title',
-            'SAFHE 100': 'Safhe 100 group title',
-            'SAFHE 120': 'Safhe 120 group title',
-            'OPEN SHELF': 'Open shelf group title',
-            'SHELF': 'Shelf group title',
-            'KESHO': 'Kesho group title',
-            'TABAGHE': 'Tabaghe group title'
-        }
-        
-        price_column = column_mapping.get(price_group.upper())
-        if not price_column or price_column not in self.price_df.columns:
-            return 0
-        
-        # Find matching row in price table
-        matching_rows = self.price_df[
-            (self.price_df['Door model title'].str.upper() == door_model.upper()) &
-            (self.price_df['Color category title'].str.upper() == color_category.upper()) &
-            (self.price_df['Color code title'].str.upper() == color_code.upper())
-        ]
-        
-        if not matching_rows.empty:
-            try:
-                return float(matching_rows.iloc[0][price_column])
-            except:
-                return 0
-        
-        return 0
-    
-    def display_cost_table(self):
-        """Display the cost table"""
-        self.table_title.config(text="Cost Table")
-        self.delete_button.config(state='disabled')
-        
-        # Load price table
-        if not self.load_price_table():
-            return
-        
-        # Create cost dataframe from summary
-        self.cost_df = self.summary_df.copy()
-        
-        # Add unit price and total price columns
-        self.cost_df['Unit Price'] = self.cost_df.apply(
-            lambda row: self.get_unit_price(
-                row['Type_Group'], 
-                row['Door Model'], 
-                row['Color Category'], 
-                row['Color Code']
-            ), axis=1
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
         
-        self.cost_df['Total Price'] = self.cost_df['Formula Output'] * self.cost_df['Unit Price']
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
         
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Create table headers
+        headers = ["Type", "L (mm)", "P (mm)", "H (mm)", "Door Model", 
+                  "Color Category", "Color Code", "Formula Output", "Delete"]
         
-        # Configure columns
-        columns = ['Type Group', 'Door Model', 'Color Category', 'Color Code', 
-                  'Formula Output', 'Unit Price', 'Total Price']
-        self.tree['columns'] = columns
+        for col, header in enumerate(headers):
+            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
+            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
         
-        for col in columns:
-            self.tree.heading(col, text=col)
-            if col in ['Formula Output', 'Unit Price', 'Total Price']:
-                self.tree.column(col, width=120)
+        # Process data and create table rows
+        self.quantity_table_data = []
+        self.entry_widgets = []
+        
+        for row_idx, part in enumerate(self.parts_data):
+            try:
+                # Extract values
+                part_type = part[1].strip()
+                L = float(part[3].strip()) if part[3].strip() else 0
+                P = float(part[4].strip()) if part[4].strip() else 0
+                H = float(part[5].strip()) if part[5].strip() else 0
+                door_model = part[10].strip() if len(part) > 10 else ""
+                color_category = part[12].strip() if len(part) > 12 else ""
+                color_code = part[13].strip() if len(part) > 13 else ""
+                
+                # Calculate formula
+                formula_output = self.calculate_formula(part_type, L, P, H)
+                
+                # Store data
+                row_data = [part_type, L, P, H, door_model, color_category, color_code, formula_output]
+                self.quantity_table_data.append(row_data)
+                
+                # Create entry widgets for editable cells
+                row_entries = []
+                for col, value in enumerate(row_data):
+                    if col < 7:  # All columns except formula output are editable
+                        entry = ttk.Entry(scrollable_frame, width=15)
+                        entry.insert(0, str(value))
+                        entry.grid(row=row_idx+1, column=col, padx=5, pady=2)
+                        row_entries.append(entry)
+                    else:  # Formula output - display only
+                        label = ttk.Label(scrollable_frame, text=f"{value:.4f}")
+                        label.grid(row=row_idx+1, column=col, padx=5, pady=2)
+                        row_entries.append(label)
+                
+                # Delete button
+                delete_btn = ttk.Button(scrollable_frame, text="Delete", 
+                                      command=lambda r=row_idx: self.delete_row(r))
+                delete_btn.grid(row=row_idx+1, column=8, padx=5, pady=2)
+                row_entries.append(delete_btn)
+                
+                self.entry_widgets.append(row_entries)
+                
+            except Exception as e:
+                print(f"Error processing row {row_idx}: {e}")
+        
+        # Pack scrollbars and canvas
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # Add buttons
+        ttk.Button(self.button_frame, text="Recalculate", command=self.recalculate_formulas).pack(side=tk.LEFT, padx=5)
+        ttk.Button(self.button_frame, text="Approve and Continue", command=self.create_summary_table).pack(side=tk.LEFT, padx=5)
+        
+        self.status_label.config(text="Quantity table created. You can edit values and click 'Recalculate'.")
+    
+    def delete_row(self, row_index):
+        """Mark row for deletion"""
+        if 0 <= row_index < len(self.entry_widgets):
+            for widget in self.entry_widgets[row_index]:
+                if isinstance(widget, (ttk.Entry, ttk.Label)):
+                    widget.config(state='disabled')
+                elif isinstance(widget, ttk.Button):
+                    widget.config(state='disabled')
+    
+    def recalculate_formulas(self):
+        """Recalculate formulas based on current entry values"""
+        for row_idx, row_entries in enumerate(self.entry_widgets):
+            try:
+                # Skip disabled rows
+                if row_entries[0].cget('state') == 'disabled':
+                    continue
+                
+                # Get current values
+                part_type = row_entries[0].get()
+                L = float(row_entries[1].get())
+                P = float(row_entries[2].get())
+                H = float(row_entries[3].get())
+                
+                # Recalculate formula
+                formula_output = self.calculate_formula(part_type, L, P, H)
+                
+                # Update formula output label
+                row_entries[7].config(text=f"{formula_output:.4f}")
+                
+                # Update stored data
+                self.quantity_table_data[row_idx] = [
+                    part_type,
+                    L, P, H,
+                    row_entries[4].get(),
+                    row_entries[5].get(),
+                    row_entries[6].get(),
+                    formula_output
+                ]
+                
+            except Exception as e:
+                print(f"Error recalculating row {row_idx}: {e}")
+        
+        self.status_label.config(text="Formulas recalculated")
+    
+    def create_summary_table(self):
+        """Create and display the summary table"""
+        # First, update quantity table data with current values
+        self.recalculate_formulas()
+        
+        # Clear existing widgets
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
+        
+        # Group data by type, door model, color category, and color code
+        summary_dict = {}
+        
+        for row_idx, row_data in enumerate(self.quantity_table_data):
+            # Skip disabled rows
+            if self.entry_widgets[row_idx][0].cget('state') == 'disabled':
+                continue
+            
+            part_type = self.normalize_type(row_data[0])
+            door_model = row_data[4]
+            color_category = row_data[5]
+            color_code = row_data[6]
+            formula_output = row_data[7]
+            
+            key = (part_type, door_model, color_category, color_code)
+            
+            if key in summary_dict:
+                summary_dict[key] += formula_output
             else:
-                self.tree.column(col, width=130)
+                summary_dict[key] = formula_output
         
-        # Add data
-        for _, row in self.cost_df.iterrows():
-            values = [
-                row['Type_Group'],
-                row['Door Model'],
-                row['Color Category'],
-                row['Color Code'],
-                f"{row['Formula Output']:.4f}",
-                f"{row['Unit Price']:.2f}",
-                f"{row['Total Price']:.2f}"
-            ]
-            self.tree.insert('', tk.END, values=values)
+        # Create summary table
+        canvas = tk.Canvas(self.table_frame)
+        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        # Show total
-        total_cost = self.cost_df['Total Price'].sum()
-        self.status_label.config(text=f"Total Cost: ${total_cost:.2f}")
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Create headers
+        headers = ["Type", "Door Model", "Color Category", "Color Code", "Total Formula Output"]
+        
+        for col, header in enumerate(headers):
+            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
+            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
+        
+        # Create summary rows
+        self.summary_table_data = []
+        
+        for row_idx, (key, total) in enumerate(sorted(summary_dict.items())):
+            part_type, door_model, color_category, color_code = key
+            
+            row_data = [part_type, door_model, color_category, color_code, total]
+            self.summary_table_data.append(row_data)
+            
+            for col, value in enumerate(row_data):
+                if col == 4:  # Formula output
+                    text = f"{value:.4f}"
+                else:
+                    text = str(value)
+                label = ttk.Label(scrollable_frame, text=text)
+                label.grid(row=row_idx+1, column=col, padx=5, pady=2, sticky=tk.W)
+        
+        # Pack scrollbars and canvas
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # Add button
+        ttk.Button(self.button_frame, text="Approve and Calculate Costs", 
+                  command=self.create_cost_table).pack(side=tk.LEFT, padx=5)
+        
+        self.status_label.config(text=f"Summary table created with {len(self.summary_table_data)} rows")
     
-    def on_double_click(self, event):
-        """Handle double-click for editing cells"""
-        if self.current_view != "quantity":
-            return  # Only allow editing in quantity table
+    def normalize_type(self, part_type: str) -> str:
+        """Normalize part type for grouping"""
+        part_type = part_type.upper()
         
-        selection = self.tree.selection()
-        if not selection:
+        type_groups = {
+            'BASE': 'Base',
+            'TALL': 'Tall',
+            'WALL': 'Wall',
+            'NAMA': 'NAMA',
+            'SAFHE 60': 'Safhe 60',
+            'SAFHE 65': 'Safhe 65',
+            'SAFHE 75': 'Safhe 75',
+            'SAFHE 90': 'Safhe 90',
+            'SAFHE 100': 'Safhe 100',
+            'SAFHE 120': 'Safhe 120',
+            'WARD': 'Ward',
+            'OPEN SHELF': 'Open shelf',
+            'SHELF': 'Shelf',
+            'KESHO': 'Kesho',
+            'TABAGHE': 'Tabaghe'
+        }
+        
+        for prefix, normalized in type_groups.items():
+            if part_type.startswith(prefix):
+                return normalized
+        
+        return part_type
+    
+    def create_cost_table(self):
+        """Create and display the cost table"""
+        # Load price table
+        price_data = self.load_price_table()
+        
+        if not price_data:
+            messagebox.showerror("Error", "Price table not found or empty. Please edit the price table first.")
             return
+        
+        # Clear existing widgets
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
+        
+        # Create cost table
+        canvas = tk.Canvas(self.table_frame)
+        scrollbar_y = ttk.Scrollbar(self.table_frame, orient="vertical", command=canvas.yview)
+        scrollbar_x = ttk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Create headers
+        headers = ["Type", "Door Model", "Color Category", "Color Code", 
+                  "Total Formula Output", "Unit Price", "Total Price"]
+        
+        for col, header in enumerate(headers):
+            label = ttk.Label(scrollable_frame, text=header, font=('Arial', 10, 'bold'))
+            label.grid(row=0, column=col, padx=5, pady=5, sticky=tk.W)
+        
+        # Create cost rows
+        self.cost_table_data = []
+        total_cost = 0
+        
+        for row_idx, row_data in enumerate(self.summary_table_data):
+            part_type = row_data[0]
+            door_model = row_data[1]
+            color_category = row_data[2]
+            color_code = row_data[3]
+            formula_output = row_data[4]
             
-        item = selection[0]
-        column = self.tree.identify_column(event.x)
-        column_index = int(column.replace('#', '')) - 1
-        
-        # Get current value
-        values = list(self.tree.item(item, 'values'))
-        current_value = values[column_index]
-        
-        # Create edit window
-        edit_window = tk.Toplevel(self.root)
-        edit_window.title("Edit Cell")
-        edit_window.geometry("300x100")
-        
-        ttk.Label(edit_window, text="New value:").pack(pady=5)
-        
-        entry = ttk.Entry(edit_window, width=30)
-        entry.pack(pady=5)
-        entry.insert(0, current_value)
-        entry.focus()
-        entry.select_range(0, tk.END)
-        
-        def save_edit():
-            new_value = entry.get()
-            values[column_index] = new_value
+            # Get unit price
+            unit_price = self.get_unit_price(part_type, door_model, color_category, 
+                                            color_code, price_data)
             
-            # Update the dataframe and recalculate if needed
-            tree_index = self.tree.index(item)
+            # Calculate total price
+            total_price = formula_output * unit_price
+            total_cost += total_price
             
-            if column_index == 0:  # Type
-                self.quantity_df.at[tree_index, 'Type'] = new_value
-                # Recalculate formula for type change
-                L = self.quantity_df.at[tree_index, 'L']
-                P = self.quantity_df.at[tree_index, 'P']
-                H = self.quantity_df.at[tree_index, 'H']
-                
-                new_formula_output = self.calculate_formula(new_value, L, P, H)
-                self.quantity_df.at[tree_index, 'Formula Output'] = new_formula_output
-                values[7] = f"{new_formula_output:.4f}"
-                
-            elif column_index in [1, 2, 3]:  # L, P, H
-                try:
-                    numeric_value = float(new_value)
-                    col_name = ['L', 'P', 'H'][column_index - 1]
-                    self.quantity_df.at[tree_index, col_name] = numeric_value
-                    
-                    # Recalculate formula
-                    L = self.quantity_df.at[tree_index, 'L']
-                    P = self.quantity_df.at[tree_index, 'P']
-                    H = self.quantity_df.at[tree_index, 'H']
-                    part_type = self.quantity_df.at[tree_index, 'Type']
-                    
-                    new_formula_output = self.calculate_formula(part_type, L, P, H)
-                    self.quantity_df.at[tree_index, 'Formula Output'] = new_formula_output
-                    values[7] = f"{new_formula_output:.4f}"
-                except ValueError:
-                    messagebox.showerror("Error", "Invalid numeric value")
-                    return
-            elif column_index == 4:  # Door Model
-                self.quantity_df.at[tree_index, 'Door Model'] = new_value
-            elif column_index == 5:  # Color Category
-                self.quantity_df.at[tree_index, 'Color Category'] = new_value
-            elif column_index == 6:  # Color Code
-                self.quantity_df.at[tree_index, 'Color Code'] = new_value
+            # Store data
+            cost_row = row_data + [unit_price, total_price]
+            self.cost_table_data.append(cost_row)
             
-            self.tree.item(item, values=values)
-            edit_window.destroy()
+            # Display row
+            for col, value in enumerate(cost_row):
+                if col in [4, 5, 6]:  # Numeric columns
+                    text = f"{value:.2f}"
+                else:
+                    text = str(value)
+                label = ttk.Label(scrollable_frame, text=text)
+                label.grid(row=row_idx+1, column=col, padx=5, pady=2, sticky=tk.W)
         
-        ttk.Button(edit_window, text="Save", command=save_edit).pack(pady=5)
+        # Add total row
+        ttk.Label(scrollable_frame, text="TOTAL", font=('Arial', 10, 'bold')).grid(
+            row=len(self.cost_table_data)+1, column=5, padx=5, pady=5, sticky=tk.E)
+        ttk.Label(scrollable_frame, text=f"{total_cost:.2f}", font=('Arial', 10, 'bold')).grid(
+            row=len(self.cost_table_data)+1, column=6, padx=5, pady=5, sticky=tk.W)
         
-        # Allow Enter key to save
-        entry.bind('<Return>', lambda e: save_edit())
+        # Pack scrollbars and canvas
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # Add buttons
+        ttk.Button(self.button_frame, text="Export to CSV", 
+                  command=self.export_cost_table).pack(side=tk.LEFT, padx=5)
+        ttk.Button(self.button_frame, text="New Analysis", 
+                  command=self.reset_analysis).pack(side=tk.LEFT, padx=5)
+        
+        self.status_label.config(text=f"Cost table created. Total cost: {total_cost:.2f}")
     
-    def approve_and_next(self):
-        """Handle approval and move to next table"""
-        if self.current_view == "quantity":
-            # Generate summary table
-            # Add normalized type for grouping
-            self.quantity_df['Type_Group'] = self.quantity_df['Type'].apply(self.normalize_type_for_summary)
-            
-            # Group by normalized type and other fields
-            self.summary_df = self.quantity_df.groupby(
-                ['Type_Group', 'Door Model', 'Color Category', 'Color Code']
-            ).agg({
-                'Formula Output': 'sum',
-                'Type': 'count'  # Count of items
-            }).reset_index()
-            
-            self.summary_df.rename(columns={'Type': 'Count'}, inplace=True)
-            
-            self.current_view = "summary"
-            self.display_summary_table()
-            self.back_button.config(state='normal')
-            self.status_label.config(text=f"Summary table generated with {len(self.summary_df)} grouped entries")
-            
-        elif self.current_view == "summary":
-            # Move to cost table
-            self.current_view = "cost"
-            self.display_cost_table()
-            self.approve_button.config(state='disabled')
+    def load_price_table(self) -> List[Dict]:
+        """Load price table from CSV"""
+        price_data = []
         
-    def go_back(self):
-        """Go back to previous table"""
-        if self.current_view == "summary":
-            self.current_view = "quantity"
-            self.display_quantity_table()
-            self.back_button.config(state='disabled')
-            self.status_label.config(text="Returned to quantity table")
-        elif self.current_view == "cost":
-            self.current_view = "summary"
-            self.display_summary_table()
-            self.approve_button.config(state='normal')
-            self.status_label.config(text="Returned to summary table")
+        try:
+            with open(self.price_table_path, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    price_data.append(row)
+        except Exception as e:
+            print(f"Error loading price table: {e}")
+        
+        return price_data
+    
+    def get_unit_price(self, part_type: str, door_model: str, color_category: str, 
+                      color_code: str, price_data: List[Dict]) -> float:
+        """Get unit price from price table"""
+        # Map part types to price table columns
+        type_to_column = {
+            'Base': 'Cabinet',
+            'Tall': 'Cabinet',
+            'Wall': 'Cabinet',
+            'Ward': 'Wardrobe',
+            'NAMA': 'NAMA',
+            'Safhe 60': 'Safhe 60',
+            'Safhe 65': 'Safhe 65',
+            'Safhe 75': 'Safhe 75',
+            'Safhe 90': 'Safhe 90',
+            'Safhe 100': 'Safhe 100',
+            'Safhe 120': 'Safhe 120',
+            'Open shelf': 'Open shelf',
+            'Shelf': 'Shelf',
+            'Kesho': 'Kesho',
+            'Tabaghe': 'Tabaghe'
+        }
+        
+        price_column = type_to_column.get(part_type, '')
+        
+        if not price_column:
+            return 0.0
+        
+        # Find matching row in price table
+        for row in price_data:
+            if (row.get('Door model', '').upper() == door_model.upper() and
+                row.get('Color category', '').upper() == color_category.upper() and
+                row.get('Color code', '').upper() == color_code.upper()):
+                
+                try:
+                    return float(row.get(price_column, 0))
+                except ValueError:
+                    return 0.0
+        
+        return 0.0
+    
+    def export_cost_table(self):
+        """Export cost table to CSV"""
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if filename:
+            try:
+                with open(filename, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    
+                    # Write headers
+                    headers = ["Type", "Door Model", "Color Category", "Color Code", 
+                             "Total Formula Output", "Unit Price", "Total Price"]
+                    writer.writerow(headers)
+                    
+                    # Write data
+                    for row in self.cost_table_data:
+                        writer.writerow(row)
+                    
+                    # Write total
+                    total = sum(row[6] for row in self.cost_table_data)
+                    writer.writerow(["", "", "", "", "", "TOTAL", total])
+                
+                messagebox.showinfo("Success", f"Cost table exported to {filename}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error exporting file: {str(e)}")
+    
+    def edit_price_table(self):
+        """Open price table editor"""
+        PriceTableEditor(self.root, self.price_table_path)
+    
+    def reset_analysis(self):
+        """Reset for new analysis"""
+        # Clear data
+        self.parts_data = []
+        self.quantity_table_data = []
+        self.summary_table_data = []
+        self.cost_table_data = []
+        
+        # Clear widgets
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
+        
+        self.status_label.config(text="Please upload a parts list file")
+
+
+class PriceTableEditor:
+    def __init__(self, parent, price_table_path):
+        self.price_table_path = price_table_path
+        
+        # Create new window
+        self.window = tk.Toplevel(parent)
+        self.window.title("Price Table Editor")
+        self.window.geometry("1000x600")
+        
+        # Create UI
+        self.create_ui()
+        
+        # Load existing data
+        self.load_data()
+    
+    def create_ui(self):
+        # Main frame
+        main_frame = ttk.Frame(self.window, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Configure grid
+        self.window.columnconfigure(0, weight=1)
+        self.window.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+        
+        # Create treeview
+        self.tree = ttk.Treeview(main_frame, height=20)
+        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Scrollbars
+        scrollbar_y = ttk.Scrollbar(main_frame, orient="vertical", command=self.tree.yview)
+        scrollbar_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        scrollbar_x = ttk.Scrollbar(main_frame, orient="horizontal", command=self.tree.xview)
+        scrollbar_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        self.tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        
+        ttk.Button(button_frame, text="Add Row", command=self.add_row).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Delete Row", command=self.delete_row).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Save", command=self.save_data).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=self.window.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def load_data(self):
+        """Load price table data"""
+        try:
+            with open(self.price_table_path, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                headers = next(reader)
+                
+                # Configure columns
+                self.tree['columns'] = headers
+                self.tree['show'] = 'tree headings'
+                
+                # Set column headings
+                for col in headers:
+                    self.tree.heading(col, text=col)
+                    self.tree.column(col, width=100)
+                
+                # Load data
+                for row in reader:
+                    self.tree.insert('', 'end', values=row)
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Error loading price table: {str(e)}")
+    
+    def add_row(self):
+        """Add new row"""
+        # Create input dialog
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Add New Row")
+        dialog.geometry("400x500")
+        
+        entries = []
+        columns = self.tree['columns']
+        
+        for i, col in enumerate(columns):
+            ttk.Label(dialog, text=col).grid(row=i, column=0, padx=5, pady=5, sticky=tk.W)
+            entry = ttk.Entry(dialog, width=30)
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            entries.append(entry)
+        
+        def save_row():
+            values = [entry.get() for entry in entries]
+            self.tree.insert('', 'end', values=values)
+            dialog.destroy()
+        
+        ttk.Button(dialog, text="Save", command=save_row).grid(row=len(columns), column=0, columnspan=2, pady=10)
+    
+    def delete_row(self):
+        """Delete selected row"""
+        selected = self.tree.selection()
+        if selected:
+            for item in selected:
+                self.tree.delete(item)
+    
+    def save_data(self):
+        """Save data to CSV"""
+        try:
+            with open(self.price_table_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Write headers
+                headers = list(self.tree['columns'])
+                writer.writerow(headers)
+                
+                # Write data
+                for item in self.tree.get_children():
+                    values = self.tree.item(item)['values']
+                    writer.writerow(values)
+            
+            messagebox.showinfo("Success", "Price table saved successfully")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error saving price table: {str(e)}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
