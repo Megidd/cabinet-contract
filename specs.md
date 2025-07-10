@@ -22,24 +22,31 @@ The rows of the price table would contain three columns:
 
 The UI will have proper column headers to be user-friendly.
 
-# Two UI outputs: _intermediate table_ and _final table_
+# UI workflow
 
-The UI would display two tables:
+## Three UI outputs: _quantity table_ and _summary table_ and _cost table_
 
-* The _intermediate_ table.
-* The _final_ table.
+The UI would display three tables:
 
-The user would be shown the _intermediate_ table. After user modification and approval, the _final_ table is displayed.
+* The _quantity_ table.
+* The _summary_ table.
+* The _cost_ table.
 
-# UI output: _intermediate table_
+The workflow is like this:
 
-## Rows of _intermediate table_
+* The user would be shown the _quantity_ table.
+* After user modification and approval, the _summary_ table is displayed.
+* After user modification and approval, the _cost_ table is displayed.
+
+# 1st UI output: _quantity table_
+
+## Rows of _quantity table_
 
 From _parts list_, only rows whose first column includes `ADIN` letters are needed. The other rows are discarded.
 
-## Columns of _intermediate table_
+## Columns of _quantity table_
 
-The columns of _intermediate table_ are mostly extracted from the _parts list_.
+The columns of _quantity table_ are mostly extracted from the _parts list_.
 
 Only extract the rows from _parts list_ whose first column includes `ADIN` letters.
 
@@ -47,7 +54,7 @@ The 1st to 7th columns are directly extracted from _parts list_ text file.
 
 The 8th column is computed by a _formula_ described by the next section.
 
-The columns of the _intermediate table_ are as follows:
+The columns of the _quantity table_ are as follows:
 
 * 1st column: part _type_
    * Extract from column 2 of _parts list_
@@ -66,9 +73,9 @@ The columns of the _intermediate table_ are as follows:
 * 8th column: part _formula_ output
    * Compute by a _formula_ described by the next section.
 
-The 8th column of the _intermediate table_ is the output of a _formula_. The next section describes the _formula_ according to each part _type_.
+The 8th column of the _quantity table_ is the output of a _formula_. The next section describes the _formula_ according to each part _type_.
 
-## The _formula_ for 8th column of _intermediate table_
+## The _formula_ for 8th column of _quantity table_
 
 ### Units of formula computation
 
@@ -76,7 +83,7 @@ The input unit of `L`, `P`, and `H` on the _parts list_ are millimeter. The unit
 
 ### Formula computation
 
-To produce the 8th column of the _intermediate table_, the program will compute the following formula corresponding to each row.
+To produce the 8th column of the _quantity table_, the program will compute the following formula corresponding to each row.
 
 For each focused row, apply a formula as below. Note that the _type_ text letters are case insensitive.
 
@@ -168,12 +175,16 @@ For each focused row, apply a formula as below. Note that the _type_ text letter
 * Type starting with `Tabaghe 6` letters:
    * Formula is `L*P*H*6`
 
-## Display _intermediate table_
+## Display _quantity table_
 
-Display the _intermediate table_ in a user-friendly way.
+Display the _quantity table_ in a user-friendly way.
 
-The UI should let the user modify the cell values of the  _intermediate table_ if needs be.
+The UI should let the user modify the cell values of the  _quantity table_ if needs be.
 
-# UI output: _final table_
+# 2nd UI output: _summary table_
 
-The _final table_ will be specified later. For now, just creation of the _intermediate table_ is enough.
+After user modifies and approves the _quantity_ table, then generate the _summary_ table and display it for user modification and approval.
+
+## Rows of _summary_ table
+
+The rows of the _summary_ table will be specified by summarizing the _quantity_ table by the following procedure.
